@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fate-Locked Ironman Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              osrs: {
+                bg: '#161616',
+                panel: '#2d2d2d',
+                border: '#3e3e3e',
+                gold: '#fbbf24',
+                text: '#d1d5db',
+                accent: '#8b5cf6',
+                success: '#22c55e',
+                fail: '#ef4444',
+                pity: '#f59e0b'
+              }
+            },
+            animation: {
+              'void-spin': 'void-spin 3s linear infinite',
+              'spin-reverse': 'spin-reverse 4s linear infinite',
+              'implode': 'implode 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              'shake': 'shake 0.1s linear infinite',
+              'flash': 'flash 0.5s ease-out forwards',
+              'float-up': 'float-up 1s ease-out forwards',
+              'god-ray': 'spin-slow 10s linear infinite',
+              'glitch': 'glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite',
+              'rain': 'rain 1s linear infinite',
+              'focus': 'focus 2s ease-in-out forwards',
+            },
+            keyframes: {
+              'void-spin': {
+                '0%': { transform: 'rotate(0deg) scale(1)' },
+                '50%': { transform: 'rotate(180deg) scale(0.9)' },
+                '100%': { transform: 'rotate(360deg) scale(1)' },
+              },
+              'spin-reverse': {
+                '0%': { transform: 'rotate(360deg)' },
+                '100%': { transform: 'rotate(0deg)' },
+              },
+              'implode': {
+                '0%': { transform: 'scale(1)', opacity: '1' },
+                '100%': { transform: 'scale(0)', opacity: '0' },
+              },
+              'shake': {
+                '0%, 100%': { transform: 'translate(0, 0)' },
+                '25%': { transform: 'translate(-2px, 2px)' },
+                '50%': { transform: 'translate(2px, -2px)' },
+                '75%': { transform: 'translate(-2px, -2px)' },
+              },
+              'flash': {
+                '0%': { opacity: '0', transform: 'scale(0.5)' },
+                '50%': { opacity: '1', transform: 'scale(2)' },
+                '100%': { opacity: '0', transform: 'scale(3)' },
+              },
+              'float-up': {
+                '0%': { opacity: '0', transform: 'translateY(20px) scale(0.8)' },
+                '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+              },
+              'glitch': {
+                '0%': { transform: 'translate(0)' },
+                '20%': { transform: 'translate(-2px, 2px)' },
+                '40%': { transform: 'translate(-2px, -2px)' },
+                '60%': { transform: 'translate(2px, 2px)' },
+                '80%': { transform: 'translate(2px, -2px)' },
+                '100%': { transform: 'translate(0)' }
+              },
+              'rain': {
+                '0%': { transform: 'translateY(-100%)', opacity: '0' },
+                '50%': { opacity: '1' },
+                '100%': { transform: 'translateY(100vh)', opacity: '0' }
+              },
+              'focus': {
+                '0%': { filter: 'blur(10px)', transform: 'scale(1.5)', opacity: '0' },
+                '50%': { filter: 'blur(0px)', transform: 'scale(1)', opacity: '1' },
+                '100%': { filter: 'blur(0px)', transform: 'scale(1)', opacity: '1' }
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #161616;
+        color: #d1d5db;
+      }
+      /* Custom Scrollbar for a more app-like feel */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1f1f1f; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #4b5563; 
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280; 
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "react-window": "https://esm.sh/react-window@1.8.10?external=react,react-dom",
+    "react-virtualized-auto-sizer": "https://esm.sh/react-virtualized-auto-sizer@1.0.24?external=react,react-dom"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
