@@ -354,7 +354,8 @@ export const StrategyGuide: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                                                 </div>
                                             </div>
                                         );
-                                })}
+                                    })
+                                )}
                              </div>
                         </div>
                     )}
@@ -386,6 +387,41 @@ export const StrategyGuide: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                                             </div>
                                             
                                             <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="font-bold text-white text-base truncate">{content.uniqueId}</h4>
+                                                    <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-500 uppercase tracking-wide border border-white/5">{content.category}</span>
+                                                </div>
+                                                <div className="flex items-center gap-4 text-xs text-gray-500 font-mono">
+                                                    <span>Difficulty Score: <span className="text-purple-400 font-bold">{content.difficultyScore}</span></span>
+                                                    <span>Progress: <span className={completionPercent > 80 ? 'text-green-400' : 'text-yellow-500'}>{completionPercent}%</span></span>
+                                                </div>
+                                            </div>
+
+                                            <button 
+                                                onClick={() => togglePin(content.uniqueId)}
+                                                className={`p-2 rounded-full transition-all ${isPinned ? 'bg-blue-600 text-white shadow-lg scale-110' : 'bg-black/40 text-gray-600 hover:text-white hover:bg-white/10'}`}
+                                                title="Pin Goal"
+                                            >
+                                                <Pin size={18} fill={isPinned ? "currentColor" : "none"} />
+                                            </button>
+                                            
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <ArrowUpRight size={18} className="text-gray-600" />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {prophecyList.length === 0 && (
+                                    <div className="text-center py-10 text-gray-500 italic">No prophecies available. You may have unlocked everything possible!</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};                                            <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <h4 className="font-bold text-white text-base truncate">{content.uniqueId}</h4>
                                                     <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-500 uppercase tracking-wide border border-white/5">{content.category}</span>
