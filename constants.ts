@@ -3,3 +3,4 @@
 export * from './data/items';
 export * from './data/assets';
 export * from './config/rules';
+export * from './data/skillUnlocks';
