@@ -1,16 +1,16 @@
-
 import React, { useState, useMemo } from 'react';
 import { 
   EQUIPMENT_SLOTS, SKILLS_LIST, REGIONS_LIST, REGION_GROUPS, MISTHALIN_AREAS, 
   MOBILITY_LIST, ARCANA_LIST, MINIGAMES_LIST, BOSSES_LIST, POH_LIST, 
   MERCHANTS_LIST, STORAGE_LIST, GUILDS_LIST, 
   FARMING_PATCH_LIST, FARMING_UNLOCK_DETAILS, EQUIPMENT_TIER_MAX, 
-  REGION_ICONS, SLOT_CONFIG, SPECIAL_ICONS, WIKI_OVERRIDES, UTILITY_ITEM_IDS
+  REGION_ICONS, SLOT_CONFIG, SPECIAL_ICONS, WIKI_OVERRIDES, UTILITY_ITEM_IDS,
+  SKILL_UNLOCK_DATA
 } from '../constants';
 import { useGame } from '../context/GameContext';
 import { 
   Sparkles, Search, User, Map, Swords, Package, 
-  ExternalLink, Unlock, Lock, Compass, ChevronDown, ChevronsUp, AlertCircle, BookOpen, ScrollText, Globe, List, Filter 
+  ExternalLink, Unlock, Lock, Compass, ChevronDown, ChevronsUp, AlertCircle, BookOpen, ScrollText, Globe, List, Filter, Info
 } from 'lucide-react';
 import { VoidReveal } from './VoidReveal';
 import { TableType } from '../types';
@@ -22,6 +22,7 @@ import { DiaryLog } from './DiaryLog';
 import { CALog } from './CALog';
 import { CollectionLog } from './CollectionLog';
 import { RegionMap } from './RegionMap';
+import { SkillDetailModal } from './SkillDetailModal';
 
 // --- Constants & Helpers ---
 
@@ -199,6 +200,7 @@ export const Dashboard: React.FC = () => {
   const [levelingSkill, setLevelingSkill] = useState<string | null>(null);
   const [pendingSpecial, setPendingSpecial] = useState<{table: TableType, item: string, image?: string} | null>(null);
   const [confirmOmni, setConfirmOmni] = useState<{table: TableType, item: string} | null>(null);
+  const [selectedSkillForDetails, setSelectedSkillForDetails] = useState<{name: string, tier: number} | null>(null);
 
   // --- Calculations ---
   const totalSkillTiers = useMemo(() => (Object.values(unlocks.skills) as number[]).reduce((a, b) => a + b, 0), [unlocks.skills]);
@@ -317,13 +319,11 @@ export const Dashboard: React.FC = () => {
                     const isUnlocked = tier > 0;
                     const methodRange = tier === 0 ? 'None' : (tier === 10 ? '1-99' : `1-${tier * 10}`);
                     
-                    // Rules: Once unlocked (tier > 0), you can level to 99.
-                    // But you are restricted to training methods within your unlocked tiers.
                     const canLevel = isUnlocked && level < 99;
                     const canOmniUpgrade = specialKeys > 0 && tier < 10;
                     const canUnlockStart = !isUnlocked && specialKeys > 0;
 
-                    // Filter Logic: Show if unlocked (have the skill) OR can unlock (have keys)
+                    // Filter Logic
                     if (showOnlyActionable && !isUnlocked && !canUnlockStart) return null;
 
                     const handleMainClick = () => {
@@ -358,7 +358,7 @@ export const Dashboard: React.FC = () => {
                                 <NoteTrigger id={skill} title={skill} />
                             </div>
 
-                            {/* Omni Upgrade Button (Top Right, shifted left due to Note) */}
+                            {/* Omni Upgrade Button */}
                             {isUnlocked && canOmniUpgrade && (
                                 <button
                                     onClick={(e) => {
@@ -375,9 +375,20 @@ export const Dashboard: React.FC = () => {
                                 </button>
                             )}
 
-                            <div className="flex items-center gap-2 mb-2 w-full pointer-events-none">
-                                <img src={getSkillIcon(skill)} className={`w-5 h-5 ${isUnlocked ? '' : 'grayscale opacity-40'}`} />
-                                <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-2 w-full">
+                                {/* Skill Icon as Details Button */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedSkillForDetails({ name: skill, tier });
+                                    }}
+                                    className="shrink-0 transition-transform hover:scale-110 z-20 cursor-pointer p-0.5 rounded hover:bg-white/5"
+                                    title="View Skill Details"
+                                >
+                                    <img src={getSkillIcon(skill)} className={`w-5 h-5 ${isUnlocked ? '' : 'grayscale opacity-40'}`} />
+                                </button>
+                                
+                                <div className="min-w-0 flex-1 pointer-events-none">
                                     <div className={`text-[10px] font-bold truncate ${tierColorText}`}>{skill}</div>
                                     <div className="text-[9px] text-gray-400 font-mono leading-none mt-0.5">
                                         {isUnlocked ? `Lvl ${level}/99` : 'Locked'}
@@ -640,6 +651,14 @@ export const Dashboard: React.FC = () => {
     <div className="bg-osrs-panel border border-osrs-border rounded-lg shadow-lg flex flex-col h-full overflow-hidden relative">
       {pendingSpecial && (
           <VoidReveal itemName={pendingSpecial.item} itemType={pendingSpecial.table} itemImage={pendingSpecial.image} onComplete={finalizeSpecial} animationsEnabled={animationsEnabled} />
+      )}
+
+      {selectedSkillForDetails && (
+          <SkillDetailModal 
+              skill={selectedSkillForDetails.name} 
+              currentTier={selectedSkillForDetails.tier} 
+              onClose={() => setSelectedSkillForDetails(null)} 
+          />
       )}
 
       {/* Confirmation Modal */}
