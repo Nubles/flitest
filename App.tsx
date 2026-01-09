@@ -15,6 +15,7 @@ import { EffectsLayer } from './components/EffectsLayer';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { OracleSearch } from './components/OracleSearch';
 import { StrategyGuide } from './components/StrategyGuide';
+import { encryptFateSave, decryptFateSave } from './utils/encryption';
 import { Key, Sparkles, Download, Upload, RotateCcw, BarChart3, HelpCircle, Dna, Share2, PlayCircle, PauseCircle, Search, Swords, ShoppingBag, ScrollText, Compass } from 'lucide-react';
 
 // --- Toast Component ---
@@ -70,14 +71,51 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const imported = JSON.parse(event.target?.result as string);
-        importSave(imported);
-      } catch (err) { alert("Failed to import save data."); }
+        const fileContent = event.target?.result as string;
+        // Attempt to decrypt the unique format
+        const imported = decryptFateSave(fileContent);
+        
+        if (imported) {
+            importSave(imported);
+            alert("Fate restored successfully.");
+        } else {
+            alert("Failed to read the ancient texts. (Invalid save file)");
+        }
+      } catch (err) { 
+          alert("Failed to import save data."); 
+          console.error(err);
+      }
     };
     reader.readAsText(file);
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleExport = () => {
+      const rawData = localStorage.getItem('FATE_UIM_SAVE_V1');
+      if (!rawData) return;
+      
+      try {
+          const jsonData = JSON.parse(rawData);
+          // Use the unique encryption method
+          const encryptedData = encryptFateSave(jsonData);
+          
+          const blob = new Blob([encryptedData], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          // Use .fate extension for flavor, though it's text
+          a.download = `fate_locked_${Date.now()}.fate`; 
+          a.click();
+          URL.revokeObjectURL(url);
+      } catch (e) {
+          console.error("Export failed", e);
+          alert("Failed to export fate data.");
+      }
   };
 
   return (
@@ -127,7 +165,8 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
 
           {/* Controls */}
           <div className="flex items-center gap-2 shrink-0">
-             <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
+             {/* Accept .fate files and legacy .json files */}
+             <input type="file" ref={fileInputRef} className="hidden" accept=".json,.fate" onChange={handleFileChange} />
              
              <button 
                 onClick={() => setShowAltar(true)}
@@ -154,15 +193,11 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
                     {animationsEnabled ? <PlayCircle size={14} /> : <PauseCircle size={14} />}
                  </button>
                  <div className="w-px h-4 bg-white/10"></div>
-                 <button onClick={() => fileInputRef.current?.click()} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded" title="Import"><Upload size={14} /></button>
+                 <button onClick={() => fileInputRef.current?.click()} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded" title="Import Save"><Upload size={14} /></button>
                  <div className="w-px h-4 bg-white/10"></div>
-                 <button onClick={() => {
-                     const blob = new Blob([localStorage.getItem('FATE_UIM_SAVE_V1') || '{}'], { type: 'application/json' });
-                     const url = URL.createObjectURL(blob);
-                     const a = document.createElement('a'); a.href = url; a.download = 'fate_save.json'; a.click();
-                 }} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded" title="Export"><Download size={14} /></button>
+                 <button onClick={handleExport} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/5 rounded" title="Export Encrypted Save"><Download size={14} /></button>
                  <div className="w-px h-4 bg-white/10"></div>
-                 <button onClick={() => { if(window.confirm("Reset?")) resetGame(); }} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-white/5 rounded" title="Reset"><RotateCcw size={14} /></button>
+                 <button onClick={() => { if(window.confirm("Are you sure you want to reset ALL progress? This cannot be undone.")) resetGame(); }} className="w-7 h-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-white/5 rounded" title="Reset"><RotateCcw size={14} /></button>
              </div>
           </div>
         </div>
