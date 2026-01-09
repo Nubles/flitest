@@ -1,12 +1,12 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { DropSource } from '../types';
 import { DROP_RATES } from '../constants';
 import { useGame } from '../context/GameContext';
-import { BookOpen, ScrollText, Skull, Swords, Crosshair, Shield } from 'lucide-react';
+import { BookOpen, ScrollText, Crosshair, Dices } from 'lucide-react';
 import { wikiService } from '../services/WikiService';
 
-// OSRS Wiki Icon URLs & Item IDs
+// OSRS Wiki Icon URLs
 const OSRS_ICONS = {
   SLAYER: 'https://oldschool.runescape.wiki/images/Slayer_icon.png',
   STATS: 'https://oldschool.runescape.wiki/images/Stats_icon.png',
@@ -83,13 +83,6 @@ const TIER_STYLES = {
     hover: 'hover:bg-[#332f1a] hover:border-[#665e3a]',
     text: 'text-[#facc15]',
     pill: 'bg-[#13110a] border-[#2e2a15] text-[#facc15] shadow-[0_0_8px_rgba(250,204,21,0.2)]'
-  },
-  BROWN: { // Collection Log / Misc
-    bg: 'bg-[#2a2016]',
-    border: 'border-[#5c4033]',
-    hover: 'hover:bg-[#3d2e24] hover:border-[#7d5642]',
-    text: 'text-[#e0c0a0]',
-    pill: 'bg-[#1c120a] border-[#38261b] text-[#e0c0a0]'
   }
 };
 
@@ -98,7 +91,7 @@ type TierStyle = typeof TIER_STYLES.GREEN;
 const getTierStyle = (tier: string): TierStyle => {
   const t = tier.toLowerCase();
   if (t.includes('grandmaster')) return TIER_STYLES.GOLD;
-  if (t.includes('master') && !t.includes('grand')) return TIER_STYLES.AMBER;
+  if (t.includes('master')) return TIER_STYLES.AMBER;
   if (t.includes('elite')) return TIER_STYLES.PURPLE;
   if (t.includes('hard') || t.includes('experienced')) return TIER_STYLES.RED;
   if (t.includes('medium') || t.includes('intermediate')) return TIER_STYLES.BLUE;
@@ -107,7 +100,47 @@ const getTierStyle = (tier: string): TierStyle => {
   return TIER_STYLES.STONE;
 };
 
-// --- New Slayer Card Component ---
+// --- New Suspense Animation Logic ---
+const useRollSuspense = (onClick: (e: any) => void) => {
+    const [isRolling, setIsRolling] = useState(false);
+
+    const triggerRoll = async (e: React.MouseEvent) => {
+        if (isRolling) return;
+        
+        // Capture event data since synthetic event is reused
+        const eventData = { clientX: e.clientX, clientY: e.clientY };
+        
+        setIsRolling(true);
+        
+        // Suspense duration (0.6s to match loading bar animation)
+        await new Promise(resolve => setTimeout(resolve, 600));
+        
+        setIsRolling(false);
+        onClick(eventData);
+    };
+
+    return { isRolling, triggerRoll };
+};
+
+// --- Rolling Overlay Component ---
+const RollingOverlay = () => (
+    <>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] z-20 flex flex-col items-center justify-center animate-in fade-in duration-200">
+            <div className="bg-black/50 p-1.5 rounded-full border border-white/20 mb-0.5 shadow-lg">
+                <Dices className="w-4 h-4 text-white animate-spin" />
+            </div>
+            <span className="text-[9px] font-black text-white uppercase tracking-[0.2em] text-shadow-osrs animate-pulse leading-none">
+                FATE
+            </span>
+        </div>
+        <div className="absolute bottom-0 left-0 h-1 bg-white/20 w-full z-30">
+            <div className="h-full bg-white shadow-[0_0_10px_white] animate-loading-bar origin-left"></div>
+        </div>
+        <div className="absolute inset-0 border-2 border-white/50 animate-pulse z-20 pointer-events-none rounded-lg"></div>
+    </>
+);
+
+// --- Slayer Card Component ---
 interface SlayerMasterProps {
   name: string;
   source: string;
@@ -118,13 +151,16 @@ interface SlayerMasterProps {
 }
 
 const SlayerMasterCard: React.FC<SlayerMasterProps> = ({ name, source, image, style, subText, onClick }) => {
+  const { isRolling, triggerRoll } = useRollSuspense(onClick);
+
   return (
     <button 
-      onClick={onClick}
+      onClick={triggerRoll}
       className={`
-        relative w-full h-20 overflow-hidden rounded-lg border-2 transition-all duration-300 group
+        relative w-full h-20 overflow-hidden rounded-lg border-2 transition-all duration-200 group text-left
         ${style.bg} ${style.border} ${style.hover}
         shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] active:scale-[0.98]
+        ${isRolling ? 'border-white/50 scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.2)]' : ''}
       `}
     >
       {/* Background Texture */}
@@ -134,11 +170,11 @@ const SlayerMasterCard: React.FC<SlayerMasterProps> = ({ name, source, image, st
       <img 
         src={image} 
         alt={name}
-        className="absolute -right-2 -bottom-2 w-auto h-[120%] object-contain opacity-40 group-hover:opacity-100 group-hover:scale-110 group-hover:-translate-x-2 transition-all duration-300 filter grayscale group-hover:grayscale-0 drop-shadow-lg"
+        className={`absolute -right-2 -bottom-2 w-auto h-[120%] object-contain transition-all duration-300 filter drop-shadow-lg ${isRolling ? 'opacity-20 grayscale blur-sm' : 'opacity-40 grayscale group-hover:opacity-100 group-hover:scale-110 group-hover:-translate-x-2 group-hover:grayscale-0'}`}
       />
 
       {/* Content (Left Aligned) */}
-      <div className="absolute inset-0 flex flex-col justify-center items-start pl-4 z-10 pointer-events-none">
+      <div className={`absolute inset-0 flex flex-col justify-center items-start pl-4 z-10 pointer-events-none transition-opacity duration-200 ${isRolling ? 'opacity-0' : 'opacity-100'}`}>
         <h3 className={`font-black text-base uppercase tracking-wider ${style.text} drop-shadow-md`}>
           {name}
         </h3>
@@ -151,7 +187,12 @@ const SlayerMasterCard: React.FC<SlayerMasterProps> = ({ name, source, image, st
       </div>
 
       {/* Hover Flash */}
-      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></div>
+      {!isRolling && (
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></div>
+      )}
+
+      {/* Rolling State Overlay */}
+      {isRolling && <RollingOverlay />}
     </button>
   );
 };
@@ -167,22 +208,24 @@ interface ClueScrollCardProps {
 const ClueScrollCard: React.FC<ClueScrollCardProps> = ({ tier, source, itemId, onClick }) => {
   const style = getTierStyle(tier);
   const imageUrl = `https://chisel.weirdgloop.org/static/img/osrs-sprite/${itemId}.png`;
+  const { isRolling, triggerRoll } = useRollSuspense(onClick);
   
   return (
     <button 
-      onClick={onClick}
+      onClick={triggerRoll}
       className={`
-        relative w-full h-16 overflow-hidden rounded-lg border-2 transition-all duration-300 group
+        relative w-full h-16 overflow-hidden rounded-lg border-2 transition-all duration-200 group
         ${style.bg} ${style.border} ${style.hover}
         shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] active:scale-[0.98]
         flex items-center justify-between px-4
+        ${isRolling ? 'border-white/50 scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.2)]' : ''}
       `}
     >
       {/* Background Texture */}
       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/shatter.png')] opacity-5 mix-blend-overlay"></div>
       
       {/* Text Info */}
-      <div className="flex flex-col items-start z-10">
+      <div className={`flex flex-col items-start z-10 transition-opacity duration-200 ${isRolling ? 'opacity-0' : 'opacity-100'}`}>
         <span className={`font-black text-sm uppercase tracking-wider ${style.text} drop-shadow-md group-hover:translate-x-1 transition-transform`}>
           {tier}
         </span>
@@ -192,83 +235,21 @@ const ClueScrollCard: React.FC<ClueScrollCardProps> = ({ tier, source, itemId, o
         </div>
       </div>
 
-      {/* Clue Icon - Using a standardized container for uniform size */}
-      <div className="relative z-10 w-9 h-9 group-hover:scale-110 transition-transform duration-300 filter drop-shadow-lg flex items-center justify-center bg-black/20 rounded-full border border-white/5 p-1">
+      {/* Clue Icon */}
+      <div className={`relative z-10 w-9 h-9 transition-all duration-300 filter drop-shadow-lg flex items-center justify-center bg-black/20 rounded-full border border-white/5 p-1 ${isRolling ? 'opacity-0' : 'group-hover:scale-110'}`}>
          <img src={imageUrl} alt={tier} className="w-full h-full object-contain" />
       </div>
 
       {/* Hover Flash */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></div>
+      {!isRolling && (
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></div>
+      )}
+
+      {/* Rolling State Overlay */}
+      {isRolling && <RollingOverlay />}
     </button>
   );
 };
-
-// Data Definitions
-const SLAYER_MASTERS = [
-  {
-    name: "Turael",
-    subText: "Burthorpe (Easy)",
-    source: DropSource.SLAYER_EASY,
-    image: "https://oldschool.runescape.wiki/images/Turael.png",
-    style: TIER_STYLES.STONE
-  },
-  {
-    name: "Mazchna",
-    subText: "Canifis (Easy)",
-    source: DropSource.SLAYER_EASY,
-    image: "https://oldschool.runescape.wiki/images/Mazchna.png",
-    style: TIER_STYLES.STONE
-  },
-  {
-    name: "Vannaka",
-    subText: "Edgeville (Medium)",
-    source: DropSource.SLAYER_MEDIUM,
-    image: "https://oldschool.runescape.wiki/images/Vannaka.png",
-    style: TIER_STYLES.BLUE
-  },
-  {
-    name: "Chaeldar",
-    subText: "Zanaris (Medium)",
-    source: DropSource.SLAYER_MEDIUM,
-    image: "https://oldschool.runescape.wiki/images/Chaeldar.png",
-    style: TIER_STYLES.BLUE
-  },
-  {
-    name: "Krystilia",
-    subText: "Wilderness (Medium)",
-    source: DropSource.SLAYER_MEDIUM,
-    image: "https://oldschool.runescape.wiki/images/Krystilia.png",
-    style: TIER_STYLES.BLUE
-  },
-  {
-    name: "Konar",
-    subText: "Mount Karuulm (Hard)",
-    source: DropSource.SLAYER_HARD,
-    image: "https://oldschool.runescape.wiki/images/Konar_quo_Maten.png",
-    style: TIER_STYLES.RED
-  },
-  {
-    name: "Nieve",
-    subText: "Gnome Stronghold (Hard)",
-    source: DropSource.SLAYER_HARD,
-    image: "https://oldschool.runescape.wiki/images/Nieve.png",
-    style: TIER_STYLES.RED
-  },
-  {
-    name: "Duradel",
-    subText: "Shilo Village (Hard)",
-    source: DropSource.SLAYER_HARD,
-    image: "https://oldschool.runescape.wiki/images/Duradel.png",
-    style: TIER_STYLES.RED
-  },
-  {
-    name: "Boss Task",
-    subText: "Boss Slayer / Special",
-    source: DropSource.SLAYER_BOSS,
-    image: "https://oldschool.runescape.wiki/images/Purple_slayer_helmet.png",
-    style: TIER_STYLES.PURPLE
-  }
-];
 
 // Using Casket Item IDs for uniform visuals
 const CLUE_SCROLLS = [
@@ -281,11 +262,89 @@ const CLUE_SCROLLS = [
 ];
 
 export const ActionSection: React.FC = () => {
-  const { rollForKey } = useGame();
+  const { rollForKey, unlocks } = useGame();
 
   const handleRoll = (source: string, chance: number, e: React.MouseEvent) => {
     rollForKey(source, chance, e.clientX, e.clientY);
   };
+
+  const slayers = useMemo(() => {
+    const isWGSComplete = unlocks.quests.includes('While Guthix Sleeps');
+    const isMM2Complete = unlocks.quests.includes('Monkey Madness II');
+
+    return [
+      {
+        name: isWGSComplete ? "Aya" : "Turael",
+        subText: "Burthorpe (Beginner)",
+        source: DropSource.SLAYER_BEGINNER,
+        image: isWGSComplete ? "https://oldschool.runescape.wiki/images/Aya.png" : "https://oldschool.runescape.wiki/images/Turael.png",
+        style: TIER_STYLES.STONE
+      },
+      {
+        name: "Spria",
+        subText: "Draynor (Beginner)",
+        source: DropSource.SLAYER_BEGINNER,
+        image: "https://oldschool.runescape.wiki/images/Spria.png",
+        style: TIER_STYLES.STONE
+      },
+      {
+        name: "Mazchna",
+        subText: "Canifis (Easy)",
+        source: DropSource.SLAYER_MAZCHNA,
+        image: "https://oldschool.runescape.wiki/images/Mazchna.png",
+        style: TIER_STYLES.GREEN
+      },
+      {
+        name: "Vannaka",
+        subText: "Edgeville (Medium)",
+        source: DropSource.SLAYER_VANNAKA,
+        image: "https://oldschool.runescape.wiki/images/Vannaka.png",
+        style: TIER_STYLES.BLUE
+      },
+      {
+        name: "Chaeldar",
+        subText: "Zanaris (Medium)",
+        source: DropSource.SLAYER_CHAELDAR,
+        image: "https://oldschool.runescape.wiki/images/Chaeldar.png",
+        style: TIER_STYLES.BLUE
+      },
+      {
+        name: "Konar",
+        subText: "Mount Karuulm (Hard)",
+        source: DropSource.SLAYER_KONAR,
+        image: "https://oldschool.runescape.wiki/images/Konar_quo_Maten.png",
+        style: TIER_STYLES.RED
+      },
+      {
+        name: isMM2Complete ? "Steve" : "Nieve",
+        subText: "Gnome Stronghold (Hard)",
+        source: DropSource.SLAYER_NIEVE,
+        image: isMM2Complete ? "https://oldschool.runescape.wiki/images/Steve.png" : "https://oldschool.runescape.wiki/images/Nieve.png",
+        style: TIER_STYLES.RED
+      },
+      {
+        name: "Krystilia",
+        subText: "Wilderness (Elite)",
+        source: DropSource.SLAYER_KRYSTILIA,
+        image: "https://oldschool.runescape.wiki/images/Krystilia.png",
+        style: TIER_STYLES.PURPLE
+      },
+      {
+        name: isWGSComplete ? "Kuradal" : "Duradel",
+        subText: "Shilo Village (Elite)",
+        source: DropSource.SLAYER_DURADEL,
+        image: isWGSComplete ? "https://oldschool.runescape.wiki/images/Kuradal.png" : "https://oldschool.runescape.wiki/images/Duradel.png",
+        style: TIER_STYLES.PURPLE
+      },
+      {
+        name: "Boss Task",
+        subText: "Boss Slayer / Special",
+        source: DropSource.SLAYER_BOSS,
+        image: "https://oldschool.runescape.wiki/images/Purple_slayer_helmet.png",
+        style: TIER_STYLES.AMBER
+      }
+    ];
+  }, [unlocks.quests]);
 
   return (
     <div className="h-full p-4">
@@ -299,7 +358,7 @@ export const ActionSection: React.FC = () => {
               Slayer Tasks
             </h3>
             <div className="flex flex-col gap-3">
-              {SLAYER_MASTERS.map((master) => (
+              {slayers.map((master) => (
                 <SlayerMasterCard 
                   key={master.name}
                   name={master.name} 
