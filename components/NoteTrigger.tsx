@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useGame } from '../context/GameContext';
 import { StickyNote, Save, X } from 'lucide-react';
 
@@ -31,8 +32,8 @@ export const NoteTrigger: React.FC<NoteTriggerProps> = ({ id, title, className }
         <StickyNote size={12} fill={hasNote ? "currentColor" : "none"} />
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setIsOpen(false)}>
+      {isOpen && createPortal(
+        <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setIsOpen(false)}>
           <div className="bg-[#1e1e1e] border border-yellow-600/30 w-full max-w-md rounded-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="bg-yellow-900/20 p-3 border-b border-yellow-600/20 flex justify-between items-center">
               <h3 className="text-yellow-500 font-bold text-sm flex items-center gap-2">
@@ -61,7 +62,8 @@ export const NoteTrigger: React.FC<NoteTriggerProps> = ({ id, title, className }
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
