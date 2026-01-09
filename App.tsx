@@ -91,8 +91,8 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
               <span className="text-2xl drop-shadow-md">🗝️</span>
             </div>
             <div>
-              <h1 className="text-lg font-black text-gray-100 tracking-tight uppercase leading-none">Fate-Locked OSRS</h1>
-              <p className="text-[10px] text-gray-500 font-mono mt-0.5 tracking-wide">V1.1 COMMAND CENTER</p>
+              <h1 className="text-lg font-black text-gray-100 tracking-tight uppercase leading-none">Fate Locked Ironman</h1>
+              <p className="text-[10px] text-gray-500 font-mono mt-0.5 tracking-wide">RNG EDITION COMMAND CENTER</p>
             </div>
           </div>
 
