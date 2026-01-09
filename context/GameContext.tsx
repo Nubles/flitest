@@ -350,16 +350,20 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
       let chaosKeys = state.chaosKeys;
       let chaosKeyAwarded = false;
 
-      // Milestone Check: Every 50 Total Levels
-      if (totalLevel % 50 === 0) {
+      // RNG Chaos Key Check (2% Chance)
+      // Replaces fixed milestone to fit "RNG Edition" theme
+      const chaosRoll = Math.random();
+      const RNG_CHAOS_CHANCE = 0.02; // 2% -> 1/50 approx
+
+      if (chaosRoll < RNG_CHAOS_CHANCE) {
           chaosKeys += 1;
           chaosKeyAwarded = true;
           logs.push({
               id: uuid(),
               timestamp: now,
               type: 'UNLOCK', 
-              message: `Milestone: Total Level ${totalLevel}`,
-              details: 'Fate smiles upon you. You received a Chaos Key!',
+              message: `Chaos Key Drop! (RNG)`,
+              details: `Fate smiled upon you at Total Level ${totalLevel}.`,
               meta: { totalLevel, reward: 'Chaos Key' }
           });
       }
