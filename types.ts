@@ -17,10 +17,18 @@ export enum DropSource {
   DIARY_MEDIUM = 'Diary (Medium)',
   DIARY_HARD = 'Diary (Hard)',
   DIARY_ELITE = 'Diary (Elite)',
-  SLAYER_EASY = 'Slayer (Turael/Spria/Mazchna)',
-  SLAYER_MEDIUM = 'Slayer (Vannaka/Chaeldar/Krystilia)',
-  SLAYER_HARD = 'Slayer (Nieve/Duradel/Konar)',
+  
+  // Specific Slayer Tiers
+  SLAYER_BEGINNER = 'Slayer (Turael/Spria)',
+  SLAYER_MAZCHNA = 'Slayer (Mazchna)',
+  SLAYER_VANNAKA = 'Slayer (Vannaka)',
+  SLAYER_CHAELDAR = 'Slayer (Chaeldar)',
+  SLAYER_KONAR = 'Slayer (Konar)',
+  SLAYER_NIEVE = 'Slayer (Nieve/Steve)',
+  SLAYER_KRYSTILIA = 'Slayer (Krystilia)',
+  SLAYER_DURADEL = 'Slayer (Duradel/Kuradal)',
   SLAYER_BOSS = 'Slayer (Boss Task)',
+
   CLUE_BEGINNER = 'Clue Scroll (Beginner)',
   CLUE_EASY = 'Clue Scroll (Easy)',
   CLUE_MEDIUM = 'Clue Scroll (Medium)',
