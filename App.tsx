@@ -9,7 +9,6 @@ import { StatsModal } from './components/StatsModal';
 import { ReferenceModal } from './components/ReferenceModal';
 import { VoidAltar } from './components/VoidAltar';
 import { ShareModal } from './components/ShareModal';
-import { ScribeChronicle } from './components/ScribeChronicle';
 import { TransmutationEffect } from './components/TransmutationEffect';
 import { ClarityEffect, GreedEffect, ChaosEffect } from './components/RitualEffects';
 import { EffectsLayer } from './components/EffectsLayer';
@@ -172,7 +171,7 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
 };
 
 // --- New Control Panel Component ---
-const ControlPanel = ({ onShowChronicle }: { onShowChronicle: () => void }) => {
+const ControlPanel = () => {
   const [activeTab, setActiveTab] = useState<'FARM' | 'SPEND' | 'LOG'>('FARM');
   
   return (
@@ -208,7 +207,7 @@ const ControlPanel = ({ onShowChronicle }: { onShowChronicle: () => void }) => {
            <GachaSection />
         </div>
         <div className={activeTab === 'LOG' ? 'block h-full' : 'hidden'}>
-           <LogViewer onShowChronicle={onShowChronicle} />
+           <LogViewer />
         </div>
       </div>
     </div>
@@ -216,14 +215,13 @@ const ControlPanel = ({ onShowChronicle }: { onShowChronicle: () => void }) => {
 };
 
 const GameLayout = () => {
-  const { lastEvent, animationsEnabled, history, hasSeenOnboarding } = useGame();
+  const { lastEvent, animationsEnabled, hasSeenOnboarding } = useGame();
   
   // UI States
   const [showStats, setShowStats] = useState(false);
   const [showReference, setShowReference] = useState(false);
   const [showAltar, setShowAltar] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [showChronicle, setShowChronicle] = useState(false);
   const [showOracle, setShowOracle] = useState(false);
   const [showStrategy, setShowStrategy] = useState(false);
   const [activeRitualAnim, setActiveRitualAnim] = useState<'NONE' | 'LUCK' | 'GREED' | 'CHAOS' | 'TRANSMUTE'>('NONE');
@@ -262,7 +260,6 @@ const GameLayout = () => {
       {showReference && <ReferenceModal onClose={() => setShowReference(false)} />}
       {showAltar && <VoidAltar onClose={() => setShowAltar(false)} />}
       {showShare && <ShareModal onClose={() => setShowShare(false)} />}
-      {showChronicle && <ScribeChronicle history={history} onClose={() => setShowChronicle(false)} />}
       {showOracle && <OracleSearch onClose={() => setShowOracle(false)} />}
       {showStrategy && <StrategyGuide onClose={() => setShowStrategy(false)} />}
 
@@ -281,7 +278,7 @@ const GameLayout = () => {
           
           {/* LEFT: Interaction & Control (35%) */}
           <div className="lg:col-span-4 h-full min-h-[500px]">
-            <ControlPanel onShowChronicle={() => setShowChronicle(true)} />
+            <ControlPanel />
           </div>
 
           {/* RIGHT: Dashboard Visualization (65%) */}
