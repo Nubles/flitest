@@ -348,11 +348,10 @@ export const ActionSection: React.FC = () => {
 
   return (
     <div className="h-full p-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Left Column: Slayer & Collection Log */}
-        <div className="space-y-6">
-          <div className="space-y-3">
+        {/* Left Column: Slayer Tasks (Takes up more vertical space typically) */}
+        <div className="space-y-3">
             <h3 className="text-xs font-bold text-[#888] uppercase tracking-widest flex items-center gap-2 border-b border-white/5 pb-1">
               <img src={OSRS_ICONS.SLAYER} alt="Slayer" className="w-3.5 h-3.5 object-contain opacity-70" />
               Slayer Tasks
@@ -370,20 +369,6 @@ export const ActionSection: React.FC = () => {
                 />
               ))}
             </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="w-full bg-[#111] border border-dashed border-[#333] px-3 py-3 rounded text-[10px] text-gray-500 flex flex-col items-center justify-center text-center font-mono gap-1 hover:border-amber-900/50 transition-colors group cursor-help">
-               <div className="flex items-center gap-2 mb-1">
-                  <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="font-bold text-amber-500 uppercase tracking-wide">Collection Log</span>
-               </div>
-               <span className="text-gray-400 leading-tight">Log new unique items in the <br/><span className="text-amber-200">Collection Log Tab</span> to roll.</span>
-               <div className="mt-1 px-2 py-0.5 bg-amber-900/20 rounded border border-amber-900/30 text-amber-400 font-bold shadow-[0_0_10px_rgba(245,158,11,0.1)] group-hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all">
-                  20% Drop Chance
-               </div>
-             </div>
-          </div>
         </div>
 
         {/* Right Column: Clue Scrolls & Info Panels */}
@@ -406,7 +391,8 @@ export const ActionSection: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 pt-2">
+             {/* Skill Rolling */}
              <div className="w-full bg-[#111] border border-dashed border-[#333] px-3 py-3 rounded text-[10px] text-gray-500 flex flex-col items-center justify-center text-center font-mono gap-1 hover:border-blue-900/50 transition-colors group cursor-help">
                <div className="flex items-center gap-2 mb-1">
                   <img src={OSRS_ICONS.STATS} alt="" className="w-3.5 h-3.5" />
@@ -418,6 +404,7 @@ export const ActionSection: React.FC = () => {
                </div>
              </div>
 
+             {/* Journal Activities */}
              <div className="w-full bg-[#111] border border-dashed border-[#333] px-3 py-3 rounded text-[10px] text-gray-500 flex flex-col items-center justify-center text-center font-mono gap-1 hover:border-cyan-900/50 transition-colors group cursor-help">
                <div className="flex items-center gap-2 mb-1">
                   <ScrollText className="w-3.5 h-3.5 text-cyan-600" />
@@ -426,6 +413,18 @@ export const ActionSection: React.FC = () => {
                <span className="text-gray-400 leading-tight">Complete Quests, Diaries & CAs <br/>in the <span className="text-cyan-200">Journal Tab</span>.</span>
                <div className="mt-1 px-2 py-0.5 bg-cyan-900/20 rounded border border-cyan-900/30 text-cyan-400 font-bold shadow-[0_0_10px_rgba(34,211,238,0.1)] group-hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all">
                   Variable Rates (10% - 100%)
+               </div>
+             </div>
+
+             {/* Collection Log (Moved from Left Column) */}
+             <div className="w-full bg-[#111] border border-dashed border-[#333] px-3 py-3 rounded text-[10px] text-gray-500 flex flex-col items-center justify-center text-center font-mono gap-1 hover:border-amber-900/50 transition-colors group cursor-help">
+               <div className="flex items-center gap-2 mb-1">
+                  <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="font-bold text-amber-500 uppercase tracking-wide">Collection Log</span>
+               </div>
+               <span className="text-gray-400 leading-tight">Log new unique items in the <br/><span className="text-amber-200">Collection Log Tab</span> to roll.</span>
+               <div className="mt-1 px-2 py-0.5 bg-amber-900/20 rounded border border-amber-900/30 text-amber-400 font-bold shadow-[0_0_10px_rgba(245,158,11,0.1)] group-hover:shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all">
+                  20% Drop Chance
                </div>
              </div>
           </div>
