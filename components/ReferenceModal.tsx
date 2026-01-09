@@ -234,7 +234,7 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({ onClose }) => {
                                             <td className="p-4">Variable</td>
                                             <td className="p-4 text-gray-500">
                                                 Chance = Level / 3. (e.g. Level 30 = 10%, Level 99 = 33%).
-                                                <br/><span className="text-red-400 font-bold mt-1 block">Bonus: Chaos Key every 50 Total Levels.</span>
+                                                <br/><span className="text-red-400 font-bold mt-1 block">Bonus: 2% Chance for Chaos Key.</span>
                                             </td>
                                         </tr>
                                         <tr>
@@ -269,7 +269,7 @@ export const ReferenceModal: React.FC<ReferenceModalProps> = ({ onClose }) => {
                                         <h4 className="font-bold text-red-400">Chaos Keys</h4>
                                     </div>
                                     <p className="text-xs text-gray-400 leading-relaxed">
-                                        Guaranteed every 50 Total Levels.
+                                        Obtained via rare drop (2%) on Level Up.
                                         <br/><br/>
                                         Also obtainable via the Ritual of Chaos (25 Fate Points).
                                     </p>
