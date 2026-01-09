@@ -34,6 +34,7 @@
               'glitch': 'glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite',
               'rain': 'rain 1s linear infinite',
               'focus': 'focus 2s ease-in-out forwards',
+              'loading-bar': 'loading-bar 0.6s linear forwards',
             },
             keyframes: {
               'void-spin': {
@@ -81,6 +82,10 @@
                 '0%': { filter: 'blur(10px)', transform: 'scale(1.5)', opacity: '0' },
                 '50%': { filter: 'blur(0px)', transform: 'scale(1)', opacity: '1' },
                 '100%': { filter: 'blur(0px)', transform: 'scale(1)', opacity: '1' }
+              },
+              'loading-bar': {
+                '0%': { width: '0%' },
+                '100%': { width: '100%' }
               }
             }
           }
