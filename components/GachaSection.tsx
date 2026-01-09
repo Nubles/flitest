@@ -6,7 +6,7 @@ import { checkUnlockAvailability, getPoolAndStateKey, isValidUnlock, calculateUn
 import { REGION_ICONS, SLOT_CONFIG, SPECIAL_ICONS, EQUIPMENT_SLOTS, SKILLS_LIST, REGIONS_LIST, MOBILITY_LIST, ARCANA_LIST, MINIGAMES_LIST, BOSSES_LIST, POH_LIST, MERCHANTS_LIST, STORAGE_LIST, GUILDS_LIST, FARMING_PATCH_LIST, UTILITY_ITEM_IDS } from '../constants';
 import { VoidReveal } from './VoidReveal';
 import { wikiService } from '../services/WikiService';
-import { Sparkles, Dices, HelpCircle, Dna, Lock, Sprout, TrendingUp } from 'lucide-react';
+import { Sparkles, Dices, HelpCircle, Dna, Lock, Sprout, TrendingUp, AlertTriangle } from 'lucide-react';
 
 // --- Inner Components ---
 interface SpendCardProps {
@@ -117,20 +117,15 @@ export const GachaSection: React.FC = () => {
     return SPECIAL_ICONS[item] ? `${baseUrl}${SPECIAL_ICONS[item]}` : undefined;
   };
   
-  // List of tables that benefit from dynamic image fetching
   const WIKI_FETCH_TYPES = [
       'region', 'boss', 'minigame', 'storage', 'guild', 
       'mobility', 'housing', 'arcana', 'merchants'
   ];
 
-  // Calculate Chaos Progress
+  // Calculate Total Level for Display
   const totalLevel = useMemo(() => {
       return Object.values(unlocks.levels).reduce((a, b) => (a as number) + (b as number), 0) as number;
   }, [unlocks.levels]);
-  
-  const nextChaosThreshold = Math.ceil((totalLevel + 1) / 50) * 50;
-  const levelsUntilChaos = nextChaosThreshold - totalLevel;
-  const chaosProgress = 100 - ((levelsUntilChaos / 50) * 100);
 
   const handleUnlock = async (table: TableType) => {
     if (pendingReveal) return; // Guard: Do not allow another roll while reveal is pending
@@ -246,26 +241,21 @@ export const GachaSection: React.FC = () => {
                 <div className="text-2xl font-bold text-red-500 group-hover:scale-110 transition-transform relative z-10 text-shadow-osrs">{chaosKeys}</div>
             </button>
         ) : (
-            <div className="w-full p-3 rounded-lg border border-white/5 bg-[#1a1a1a] flex flex-col gap-2 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-black/40 rounded-full border border-white/10 grayscale opacity-50"><Dna className="text-gray-500 w-5 h-5" /></div>
-                        <div>
-                            <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs">Chaos Progress</h3>
-                            <p className="text-[10px] text-gray-600 font-mono">Next key at Total Level {nextChaosThreshold}</p>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <span className="text-xs font-bold text-gray-500 block">{totalLevel} / {nextChaosThreshold}</span>
-                        <span className="text-[9px] text-gray-700 uppercase tracking-wide">Total Level</span>
+            <div className="w-full p-3 rounded-lg border border-white/5 bg-[#1a1a1a] flex items-center justify-between relative overflow-hidden">
+                {/* Info */}
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-black/40 rounded-full border border-white/10 grayscale opacity-50"><Dna className="text-gray-500 w-5 h-5" /></div>
+                    <div>
+                        <h3 className="text-gray-400 font-bold uppercase tracking-widest text-xs">Chaos Entropy</h3>
+                        <p className="text-[10px] text-gray-600 font-mono flex items-center gap-1">
+                           <AlertTriangle size={10} /> 2% Chance on Level Up
+                        </p>
                     </div>
                 </div>
-                {/* Progress Bar */}
-                <div className="h-1.5 w-full bg-black/50 rounded-full overflow-hidden border border-white/5">
-                    <div 
-                        className="h-full bg-gradient-to-r from-red-900 to-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)] transition-all duration-500" 
-                        style={{ width: `${chaosProgress}%` }}
-                    ></div>
+                {/* Total Level Stat */}
+                <div className="text-right">
+                    <span className="text-xs font-bold text-gray-500 block">{totalLevel}</span>
+                    <span className="text-[9px] text-gray-700 uppercase tracking-wide">Total Level</span>
                 </div>
             </div>
         )}
