@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Sparkles, Map, Box, Copy, Shield, BookOpen, Footprints, Zap, Home, Store, Gamepad2, Skull, Package, Dna, ExternalLink, Flag, Check } from 'lucide-react';
+import { Sparkles, Map, Box, Copy, Shield, BookOpen, Footprints, Zap, Home, Store, Gamepad2, Skull, Package, Dna, ExternalLink, Flag, Check, Loader2 } from 'lucide-react';
 import { WIKI_OVERRIDES } from '../constants';
 
 interface VoidRevealProps {
@@ -50,6 +50,7 @@ export const VoidReveal: React.FC<VoidRevealProps> = ({ itemName, itemType, item
       return isChaos ? 'roulette' : 'imploding';
   });
   const [imageError, setImageError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [rouletteIndex, setRouletteIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +76,21 @@ export const VoidReveal: React.FC<VoidRevealProps> = ({ itemName, itemType, item
         containerRef.current.focus();
     }
   }, []);
+
+  // Preload Image during animation
+  useEffect(() => {
+    if (itemImage) {
+        const img = new Image();
+        img.src = itemImage;
+        img.onload = () => setImgLoaded(true);
+        img.onerror = () => {
+            setImageError(true);
+            setImgLoaded(true); // Mark loaded to stop spinner and show fallback
+        };
+    } else {
+        setImgLoaded(true);
+    }
+  }, [itemImage]);
 
   useEffect(() => {
     if (!animationsEnabled) {
@@ -395,15 +411,25 @@ export const VoidReveal: React.FC<VoidRevealProps> = ({ itemName, itemType, item
               </h3>
               
               {itemImage && !imageError ? (
-                 <div className="flex justify-center my-6 relative">
+                 <div className="flex justify-center my-6 relative min-h-[6rem] items-center">
                     {animationsEnabled && (
                         <div className={`absolute inset-0 bg-gradient-to-t ${theme.bgGradient} blur-xl opacity-50 animate-pulse`}></div>
                     )}
+                    
+                    {!imgLoaded && (
+                        <div className="absolute inset-0 flex items-center justify-center z-20">
+                            <Loader2 className={`w-8 h-8 animate-spin ${theme.text}`} />
+                        </div>
+                    )}
+
                     <img 
                         src={itemImage} 
                         alt={itemName} 
-                        className={`${isRegion ? 'w-auto h-auto max-h-[70vh] max-w-full rounded-lg border border-white/10 shadow-2xl' : 'w-24 h-24'} object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] relative z-10`}
-                        onError={() => setImageError(true)}
+                        className={`${isRegion ? 'w-auto h-auto max-h-[70vh] max-w-full rounded-lg border border-white/10 shadow-2xl' : 'w-24 h-24'} object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] relative z-10 transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        onError={() => {
+                            setImageError(true);
+                            setImgLoaded(true); // Ensure spinner stops even on error
+                        }}
                     />
                  </div>
               ) : (
