@@ -1,6 +1,6 @@
 
-import React, { useRef, useState, useMemo } from 'react';
-import { X, Copy, Download, Trophy, Map, Shield, Sparkles, Skull, Crown, Hash, Activity, Zap, Home, Store, Gamepad2, Package, BookOpen } from 'lucide-react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
+import { X, Copy, Download, Trophy, Map, Shield, Sparkles, Skull, Crown, Hash, Activity, Zap, Home, Store, Gamepad2, Package, BookOpen, Dna, Calendar, Star } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useGame } from '../context/GameContext';
 import { EQUIPMENT_SLOTS, EQUIPMENT_TIER_MAX, SKILLS_LIST, REGIONS_LIST, REGION_GROUPS, SLOT_CONFIG } from '../constants';
@@ -9,7 +9,20 @@ interface ShareModalProps {
   onClose: () => void;
 }
 
-type CardTheme = 'VOID' | 'GILDED' | 'IRON' | 'BLOOD';
+type CardTheme = 'VOID' | 'GILDED' | 'IRON' | 'BLOOD' | 'NATURE';
+
+const TIER_COLORS = [
+  'bg-[#292524]', // T1 Stone
+  'bg-[#7c2d12]', // T2 Bronze
+  'bg-[#52525b]', // T3 Iron
+  'bg-[#94a3b8]', // T4 Steel
+  'bg-[#047857]', // T5 Adamant
+  'bg-[#0891b2]', // T6 Rune
+  'bg-[#b91c1c]', // T7 Dragon
+  'bg-[#7e22ce]', // T8 Ancient
+  'bg-[#c026d3]', // T9 Crystal
+  'bg-[#facc15]', // T10 Gilded
+];
 
 export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
   const gameState = useGame();
@@ -43,9 +56,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
 
   // --- Rank System ---
   const rank = useMemo(() => {
-    if (progressPercent < 10) return { title: 'Lost Soul', color: 'text-gray-400', icon: Skull };
+    if (progressPercent < 10) return { title: 'Lost Soul', color: 'text-gray-500', icon: Skull };
     if (progressPercent < 25) return { title: 'Fate Wanderer', color: 'text-blue-400', icon: Map };
-    if (progressPercent < 50) return { title: 'Iron Determinator', color: 'text-gray-200', icon: Shield };
+    if (progressPercent < 50) return { title: 'Iron Determinator', color: 'text-gray-300', icon: Shield };
     if (progressPercent < 75) return { title: 'Void Champion', color: 'text-purple-400', icon: Trophy };
     return { title: 'Master of Fate', color: 'text-amber-400', icon: Crown };
   }, [progressPercent]);
@@ -56,7 +69,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
       case 'GILDED':
         return {
           bg: 'bg-[#1a1814]',
-          border: 'border-yellow-600',
+          border: 'border-[#854d0e]',
           accent: 'text-yellow-500',
           sub: 'text-yellow-200/60',
           panel: 'bg-[#2a2620]',
@@ -78,7 +91,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
       case 'BLOOD':
         return {
           bg: 'bg-[#1a0a0a]',
-          border: 'border-red-800',
+          border: 'border-red-900',
           accent: 'text-red-500',
           sub: 'text-red-200/60',
           panel: 'bg-[#2a1010]',
@@ -86,11 +99,22 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
           deco: 'border-red-500/20',
           bar: 'bg-red-600'
         };
+      case 'NATURE':
+        return {
+          bg: 'bg-[#0f1a10]',
+          border: 'border-emerald-800',
+          accent: 'text-emerald-400',
+          sub: 'text-emerald-200/50',
+          panel: 'bg-[#142515]',
+          gradient: 'from-emerald-900/40 via-[#0f1a10] to-black',
+          deco: 'border-emerald-500/20',
+          bar: 'bg-emerald-500'
+        };
       case 'VOID':
       default:
         return {
           bg: 'bg-[#0f0f13]',
-          border: 'border-purple-500/50',
+          border: 'border-purple-900',
           accent: 'text-purple-400',
           sub: 'text-purple-200/50',
           panel: 'bg-[#18181b]',
@@ -107,7 +131,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({ onClose }) => {
   const generateTextSummary = () => {
     return `📜 **Fate-Locked Ironman** - ${rank.title}
 Progression: ${progressPercent}% | Total Level: ${totalLevel}
-🔑 Keys: ${gameState.keys} | ✨ Omni: ${gameState.specialKeys}
+🔑 Keys: ${gameState.keys} | ✨ Omni: ${gameState.specialKeys} | 🧬 Chaos: ${gameState.chaosKeys}
 🌍 Regions: ${totalRegions} Unlocked
 ⚔️ Gear Tiers: ${totalEquipTiers}
 🏆 Bosses: ${bossCount} | 🎲 Minigames: ${minigameCount}
@@ -159,17 +183,43 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
       return `https://oldschool.runescape.wiki/images/${skill}_icon.png`;
   };
 
+  // Notable feats logic
+  const notableFeats = useMemo(() => {
+      const feats = [];
+      
+      // Skills
+      const maxedSkills = Object.entries(unlocks.skills).filter(([_, t]) => t >= 10);
+      if (maxedSkills.length > 0) feats.push({ label: `${maxedSkills.length} Maxed Skills`, icon: Crown, color: 'text-yellow-400' });
+      else if (Object.values(unlocks.skills).some(t => t >= 7)) feats.push({ label: 'High-Tier Skiller', icon: BookOpen, color: 'text-blue-400' });
+
+      // Gear
+      const maxedGear = Object.entries(unlocks.equipment).filter(([_, t]) => t >= 9);
+      if (maxedGear.length > 0) feats.push({ label: 'Endgame Gear Unlocked', icon: Shield, color: 'text-red-400' });
+
+      // Raids
+      if (unlocks.bosses.includes('Chambers of Xeric') || unlocks.bosses.includes('Theatre of Blood') || unlocks.bosses.includes('Tombs of Amascut')) {
+          feats.push({ label: 'Raid Access', icon: Skull, color: 'text-green-400' });
+      }
+
+      // Specifics
+      if (unlocks.bosses.includes('Inferno')) feats.push({ label: 'Inferno Unlocked', icon: Zap, color: 'text-orange-500' });
+      if (unlocks.regions.includes('Prifddinas')) feats.push({ label: 'Prifddinas Access', icon: Map, color: 'text-teal-400' });
+      if (unlocks.regions.includes('Wilderness')) feats.push({ label: 'Brave Wanderer', icon: Skull, color: 'text-gray-400' });
+
+      return feats.slice(0, 4);
+  }, [unlocks]);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
-      <div className="flex flex-col gap-6 items-center w-full max-w-4xl my-auto">
+      <div className="flex flex-col gap-6 items-center w-full max-w-5xl my-auto">
         
         {/* Theme Selectors */}
-        <div className="flex gap-2 p-2 bg-[#1a1a1a] rounded-full border border-white/10">
-            {(['VOID', 'GILDED', 'IRON', 'BLOOD'] as CardTheme[]).map(t => (
+        <div className="flex gap-2 p-1.5 bg-[#1a1a1a] rounded-full border border-white/10 shadow-xl overflow-x-auto max-w-full">
+            {(['VOID', 'GILDED', 'IRON', 'BLOOD', 'NATURE'] as CardTheme[]).map(t => (
                 <button
                     key={t}
                     onClick={() => setTheme(t)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${theme === t ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all uppercase tracking-wider ${theme === t ? 'bg-white text-black shadow-md scale-105' : 'text-gray-500 hover:text-white'}`}
                 >
                     {t}
                 </button>
@@ -181,88 +231,94 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
           ref={cardRef}
           id="status-card"
           className={`
-            w-full max-w-[800px]
-            rounded-xl border-[3px] ${ts.border}
+            w-full max-w-[850px]
+            rounded-2xl border-[4px] ${ts.border}
             ${ts.bg} relative overflow-hidden shadow-2xl flex flex-col
           `}
         >
             {/* Background Texture */}
             <div className={`absolute inset-0 bg-gradient-to-br ${ts.gradient} pointer-events-none`}></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.07] pointer-events-none"></div>
+            
+            {/* Top Badge Decoration */}
+            <div className={`absolute top-0 right-0 p-32 bg-gradient-to-bl from-white/5 to-transparent rounded-bl-full pointer-events-none`}></div>
 
             {/* HEADER */}
-            <div className={`relative z-10 flex justify-between items-center p-6 border-b ${ts.deco}`}>
-                <div className="flex items-center gap-5">
-                    <div className={`w-16 h-16 rounded-xl border-2 ${ts.border} bg-black/40 flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
-                        <rank.icon className={`w-10 h-10 ${rank.color}`} />
+            <div className={`relative z-10 flex justify-between items-start p-8 pb-6 border-b ${ts.deco}`}>
+                <div className="flex items-center gap-6">
+                    <div className={`w-20 h-20 rounded-2xl border-2 ${ts.border} bg-black/40 flex items-center justify-center shadow-[0_0_25px_rgba(0,0,0,0.5)] backdrop-blur-md`}>
+                        <rank.icon className={`w-12 h-12 ${rank.color} drop-shadow-lg`} />
                     </div>
                     <div>
-                        <h2 className="text-3xl font-black text-white uppercase tracking-widest leading-none">Fate-Locked Ironman</h2>
-                        <div className={`flex items-center gap-3 mt-1 ${rank.color}`}>
-                            <span className="text-sm font-bold uppercase tracking-wide">{rank.title}</span>
-                            <div className="h-px w-12 bg-current opacity-50"></div>
-                            <span className="text-xs text-gray-400 font-mono">{new Date().toLocaleDateString()}</span>
+                        <div className={`text-xs font-bold uppercase tracking-[0.2em] mb-1 ${ts.accent}`}>RNG Edition</div>
+                        <h2 className="text-4xl font-black text-white uppercase tracking-tight leading-none drop-shadow-md">Fate Locked</h2>
+                        <div className={`flex items-center gap-3 mt-2 ${rank.color}`}>
+                            <span className="text-sm font-bold uppercase tracking-wide bg-black/30 px-2 py-0.5 rounded border border-white/5">{rank.title}</span>
+                            <span className="text-xs text-gray-400 font-mono flex items-center gap-1.5"><Calendar size={12} /> {new Date().toLocaleDateString()}</span>
                         </div>
                     </div>
                 </div>
                 <div className="text-right">
                     <div className="flex flex-col items-end">
-                         <span className={`text-4xl font-black text-white leading-none flex items-center gap-2`}>
+                         <span className={`text-5xl font-black text-white leading-none flex items-center gap-2 drop-shadow-lg`}>
                             {progressPercent}%
                          </span>
-                         <span className={`text-[10px] font-mono uppercase tracking-widest ${ts.sub}`}>Completion</span>
+                         <span className={`text-[10px] font-mono uppercase tracking-[0.3em] ${ts.sub} mt-1`}>Completion</span>
                     </div>
                 </div>
             </div>
 
             {/* STATS BAR */}
-            <div className={`relative z-10 grid grid-cols-4 border-b ${ts.deco} bg-black/20 divide-x divide-white/5`}>
-                 <div className="p-3 flex flex-col items-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Level</span>
-                    <span className="text-xl font-bold text-white flex items-center gap-2"><Activity size={16} className={ts.accent} /> {totalLevel}</span>
+            <div className={`relative z-10 grid grid-cols-5 border-b ${ts.deco} bg-black/30 divide-x divide-white/5 backdrop-blur-sm`}>
+                 <div className="py-3 px-2 flex flex-col items-center group">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 group-hover:text-gray-300 transition-colors">Total Level</span>
+                    <span className="text-lg font-bold text-white flex items-center gap-1.5"><Activity size={14} className={ts.accent} /> {totalLevel}</span>
                  </div>
-                 <div className="p-3 flex flex-col items-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Keys Found</span>
-                    <span className="text-xl font-bold text-white flex items-center gap-2"><Hash size={16} className={ts.accent} /> {gameState.keys}</span>
+                 <div className="py-3 px-2 flex flex-col items-center group">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 group-hover:text-gray-300 transition-colors">Fate Points</span>
+                    <span className="text-lg font-bold text-white flex items-center gap-1.5"><Shield size={14} className="text-amber-400" /> {gameState.fatePoints}</span>
                  </div>
-                 <div className="p-3 flex flex-col items-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Omni-Keys</span>
-                    <span className="text-xl font-bold text-white flex items-center gap-2"><Sparkles size={16} className="text-purple-400" /> {gameState.specialKeys}</span>
+                 <div className="py-3 px-2 flex flex-col items-center group">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 group-hover:text-gray-300 transition-colors">Keys</span>
+                    <span className="text-lg font-bold text-white flex items-center gap-1.5"><Hash size={14} className={ts.accent} /> {gameState.keys}</span>
                  </div>
-                 <div className="p-3 flex flex-col items-center">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Fate Points</span>
-                    <span className="text-xl font-bold text-white flex items-center gap-2"><Shield size={16} className="text-amber-400" /> {gameState.fatePoints}</span>
+                 <div className="py-3 px-2 flex flex-col items-center group">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 group-hover:text-gray-300 transition-colors">Omni-Keys</span>
+                    <span className="text-lg font-bold text-white flex items-center gap-1.5"><Sparkles size={14} className="text-purple-400" /> {gameState.specialKeys}</span>
+                 </div>
+                 <div className="py-3 px-2 flex flex-col items-center group">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 group-hover:text-gray-300 transition-colors">Chaos Keys</span>
+                    <span className="text-lg font-bold text-white flex items-center gap-1.5"><Dna size={14} className="text-red-500" /> {gameState.chaosKeys}</span>
                  </div>
             </div>
 
             {/* MAIN CONTENT */}
-            <div className="relative z-10 p-6 grid grid-cols-12 gap-6">
+            <div className="relative z-10 p-8 grid grid-cols-12 gap-8">
                 
                 {/* Left Panel: Gear & Unlocks (8 cols) */}
-                <div className="col-span-7 space-y-6">
+                <div className="col-span-7 space-y-7">
                     
                     {/* Skills Section */}
                     <div>
-                        <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2`}>
-                            <BookOpen size={14} /> Skills
+                        <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2 border-b border-white/5 pb-2`}>
+                            <BookOpen size={14} /> Skill Mastery
                         </h3>
                         <div className="grid grid-cols-6 gap-2">
                              {SKILLS_LIST.map(skill => {
                                  const tier = unlocks.skills[skill] || 0;
                                  return (
                                      <div key={skill} className={`bg-black/40 rounded border ${ts.deco} p-1.5 flex flex-col items-center relative overflow-hidden group`}>
-                                         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                         <div className="relative z-10 w-6 h-6 flex items-center justify-center mb-1">
+                                         <div className="relative z-10 w-6 h-6 flex items-center justify-center mb-1.5">
                                              <img 
                                                 src={getSkillImage(skill)} 
                                                 alt={skill} 
-                                                className={`w-full h-full object-contain ${tier === 0 ? 'opacity-30 grayscale' : ''}`} 
+                                                className={`w-full h-full object-contain ${tier === 0 ? 'opacity-30 grayscale' : 'drop-shadow-sm'}`} 
                                                 onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
                                              />
-                                             {tier >= 10 && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-osrs-gold shadow-[0_0_5px_rgba(250,204,21,1)]"></div>}
                                          </div>
-                                         <div className={`w-full text-center text-[9px] font-bold ${tier === 0 ? 'text-gray-600' : tier >= 10 ? 'text-osrs-gold bg-yellow-900/30' : 'text-white bg-white/10'} rounded-sm`}>
-                                             {tier === 0 ? 'Locked' : tier >= 10 ? '99' : `T${tier}`}
+                                         {/* Tier Bar */}
+                                         <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                            <div className={`h-full ${tier > 0 ? TIER_COLORS[Math.min(tier - 1, 9)] : 'bg-transparent'}`} style={{width: '100%'}}></div>
                                          </div>
                                      </div>
                                  )
@@ -272,21 +328,19 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
 
                     {/* Equipment Section */}
                     <div>
-                        <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2`}>
-                            <Shield size={14} /> Gear Progression
+                        <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2 border-b border-white/5 pb-2`}>
+                            <Shield size={14} /> Gear Access
                         </h3>
                         <div className="grid grid-cols-6 gap-2">
                              {EQUIPMENT_SLOTS.map(slot => {
                                  const tier = unlocks.equipment[slot] || 0;
                                  return (
                                      <div key={slot} className={`bg-black/40 rounded border ${ts.deco} p-1.5 flex flex-col items-center relative overflow-hidden group`}>
-                                         <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                         <div className="relative z-10 w-8 h-8 flex items-center justify-center mb-1">
-                                             <img src={getSlotImage(slot)} alt={slot} className={`w-full h-full object-contain ${tier === 0 ? 'opacity-30 grayscale' : ''}`} />
-                                             {tier >= 7 && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,1)]"></div>}
+                                         <div className="relative z-10 w-8 h-8 flex items-center justify-center mb-1.5">
+                                             <img src={getSlotImage(slot)} alt={slot} className={`w-full h-full object-contain ${tier === 0 ? 'opacity-20 grayscale' : 'drop-shadow-md'}`} />
                                          </div>
-                                         <div className={`w-full text-center text-[10px] font-bold ${tier === 0 ? 'text-gray-600' : 'text-white bg-white/10 rounded-sm'}`}>
-                                             T{tier}
+                                         <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                                            <div className={`h-full ${tier > 0 ? TIER_COLORS[Math.min(tier - 1, 9)] : 'bg-transparent'}`} style={{width: '100%'}}></div>
                                          </div>
                                      </div>
                                  )
@@ -296,33 +350,33 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
 
                     {/* Unlock Counters */}
                     <div>
-                         <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2`}>
-                            <Zap size={14} /> Content Access
+                         <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2 border-b border-white/5 pb-2`}>
+                            <Zap size={14} /> Unlocked Content
                         </h3>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex justify-between items-center`}>
-                                <div className="flex items-center gap-2 text-xs text-gray-400"><Skull size={14} /> Bosses</div>
-                                <span className="font-bold text-white">{bossCount}</span>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex flex-col items-center justify-center gap-1`}>
+                                <div className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5"><Skull size={12} /> Bosses</div>
+                                <span className="font-bold text-white text-lg leading-none">{bossCount}</span>
                             </div>
-                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex justify-between items-center`}>
-                                <div className="flex items-center gap-2 text-xs text-gray-400"><Gamepad2 size={14} /> Minigames</div>
-                                <span className="font-bold text-white">{minigameCount}</span>
+                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex flex-col items-center justify-center gap-1`}>
+                                <div className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5"><Gamepad2 size={12} /> Minigames</div>
+                                <span className="font-bold text-white text-lg leading-none">{minigameCount}</span>
                             </div>
-                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex justify-between items-center`}>
-                                <div className="flex items-center gap-2 text-xs text-gray-400"><Store size={14} /> Merchants</div>
-                                <span className="font-bold text-white">{unlocks.merchants.length}</span>
+                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex flex-col items-center justify-center gap-1`}>
+                                <div className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5"><Store size={12} /> Merchants</div>
+                                <span className="font-bold text-white text-lg leading-none">{unlocks.merchants.length}</span>
                             </div>
-                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex justify-between items-center`}>
-                                <div className="flex items-center gap-2 text-xs text-gray-400"><Home size={14} /> POH Rooms</div>
-                                <span className="font-bold text-white">{pohCount}</span>
+                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex flex-col items-center justify-center gap-1`}>
+                                <div className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5"><Home size={12} /> POH</div>
+                                <span className="font-bold text-white text-lg leading-none">{pohCount}</span>
                             </div>
-                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex justify-between items-center`}>
-                                <div className="flex items-center gap-2 text-xs text-gray-400"><Sparkles size={14} /> Arcana</div>
-                                <span className="font-bold text-white">{arcanaCount}</span>
+                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex flex-col items-center justify-center gap-1`}>
+                                <div className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5"><Sparkles size={12} /> Arcana</div>
+                                <span className="font-bold text-white text-lg leading-none">{arcanaCount}</span>
                             </div>
-                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex justify-between items-center`}>
-                                <div className="flex items-center gap-2 text-xs text-gray-400"><Package size={14} /> Storage</div>
-                                <span className="font-bold text-white">{unlocks.storage.length}</span>
+                            <div className={`${ts.panel} p-2 rounded border ${ts.deco} flex flex-col items-center justify-center gap-1`}>
+                                <div className="text-xs text-gray-400 font-bold uppercase flex items-center gap-1.5"><Package size={12} /> Storage</div>
+                                <span className="font-bold text-white text-lg leading-none">{unlocks.storage.length}</span>
                             </div>
                         </div>
                     </div>
@@ -331,11 +385,11 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
 
                 {/* Right Panel: Region Mastery (5 cols) */}
                 <div className="col-span-5 flex flex-col h-full">
-                     <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2`}>
+                     <h3 className={`text-xs font-bold uppercase tracking-widest mb-3 ${ts.accent} flex items-center gap-2 border-b border-white/5 pb-2`}>
                         <Map size={14} /> World Mastery
                     </h3>
                     
-                    <div className={`flex-1 ${ts.panel} rounded border ${ts.deco} p-3 overflow-hidden flex flex-col`}>
+                    <div className={`flex-1 ${ts.panel} rounded border ${ts.deco} p-4 overflow-hidden flex flex-col shadow-inner bg-black/20`}>
                         <div className="space-y-3">
                             {regionMastery.length === 0 && (
                                 <div className="text-center py-10 text-xs italic text-gray-600">No regions explored...</div>
@@ -344,27 +398,28 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
                                 <div key={group} className="space-y-1">
                                     <div className="flex justify-between text-[10px] uppercase font-bold text-gray-300">
                                         <span>{group}</span>
-                                        <span className="opacity-70">{Math.round(percent * 100)}%</span>
+                                        <span className="opacity-70 font-mono">{Math.round(percent * 100)}%</span>
                                     </div>
-                                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
-                                        <div className={`h-full ${ts.bar} transition-all`} style={{ width: `${percent * 100}%` }}></div>
+                                    <div className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden border border-white/5">
+                                        <div className={`h-full ${ts.bar} transition-all shadow-[0_0_5px_currentColor]`} style={{ width: `${percent * 100}%` }}></div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                         
-                        {/* Notable Feats Section at bottom of Right Panel */}
-                        <div className="mt-auto pt-4 border-t border-white/5">
-                            <h4 className="text-[9px] font-bold uppercase text-gray-500 mb-2">Notable Feats</h4>
-                            <div className="flex flex-wrap gap-1">
-                                {unlocks.bosses.slice(0, 4).map(b => (
-                                    <span key={b} className="px-1.5 py-0.5 bg-red-900/30 text-red-200 border border-red-500/20 rounded text-[9px] truncate max-w-[100px]">{b}</span>
-                                ))}
-                                {unlocks.storage.slice(0, 2).map(s => (
-                                    <span key={s} className="px-1.5 py-0.5 bg-amber-900/30 text-amber-200 border border-amber-500/20 rounded text-[9px] truncate max-w-[100px]">{s}</span>
-                                ))}
-                                {totalSkillTiers >= 100 && (
-                                    <span className="px-1.5 py-0.5 bg-blue-900/30 text-blue-200 border border-blue-500/20 rounded text-[9px]">Skill Master</span>
+                        {/* Notable Feats Section */}
+                        <div className="mt-auto pt-6">
+                            <h4 className="text-[10px] font-bold uppercase text-gray-500 mb-3 flex items-center gap-2 border-t border-white/5 pt-3">
+                                <Star size={10} /> Notable Feats
+                            </h4>
+                            <div className="flex flex-col gap-2">
+                                {notableFeats.length > 0 ? notableFeats.map((feat, i) => (
+                                    <div key={i} className="flex items-center gap-3 bg-black/40 p-2 rounded border border-white/5">
+                                        <feat.icon size={16} className={feat.color} />
+                                        <span className="text-xs font-bold text-gray-300">{feat.label}</span>
+                                    </div>
+                                )) : (
+                                    <div className="text-[10px] text-gray-600 italic text-center py-2">The journey has just begun...</div>
                                 )}
                             </div>
                         </div>
@@ -373,30 +428,33 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
             </div>
 
             {/* FOOTER */}
-            <div className={`relative z-10 py-2 px-6 bg-black/40 flex justify-between items-center text-[10px] ${ts.sub} font-mono uppercase`}>
-                <div>Fate is Absolute</div>
+            <div className={`relative z-10 py-3 px-8 bg-black/60 backdrop-blur-md flex justify-between items-center text-[10px] ${ts.sub} font-mono uppercase border-t ${ts.deco}`}>
+                <div className="flex items-center gap-2">
+                    <Activity size={12} />
+                    <span>Fate is Absolute</span>
+                </div>
                 <div>ID: {Date.now().toString(36).toUpperCase()}</div>
             </div>
         </div>
 
         {/* Controls */}
-        <div className="flex gap-4 w-full max-w-[800px]">
+        <div className="flex gap-4 w-full max-w-[850px]">
             <button 
                 onClick={handleCopyText}
-                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-white font-bold rounded-lg transition-all border border-white/10"
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2d2d2d] hover:bg-[#3d3d3d] text-white font-bold rounded-lg transition-all border border-white/10 shadow-lg"
             >
-                {copyStatus === 'copied' ? <span className="text-green-400">Copied to Clipboard!</span> : <><Copy size={18} /> Copy Text Summary</>}
+                {copyStatus === 'copied' ? <span className="text-green-400 flex items-center gap-2"><div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>Copied!</span> : <><Copy size={18} /> Copy Summary</>}
             </button>
             <button 
                 onClick={handleDownloadImage}
                 disabled={isCapturing}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 font-bold rounded-lg transition-all text-black ${theme === 'GILDED' ? 'bg-yellow-500 hover:bg-yellow-400' : theme === 'BLOOD' ? 'bg-red-600 hover:bg-red-500 text-white' : theme === 'IRON' ? 'bg-gray-400 hover:bg-gray-300' : 'bg-purple-500 hover:bg-purple-400 text-white'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 font-bold rounded-lg transition-all text-black shadow-lg hover:shadow-white/20 ${theme === 'GILDED' ? 'bg-yellow-500 hover:bg-yellow-400' : theme === 'BLOOD' ? 'bg-red-600 hover:bg-red-500 text-white' : theme === 'IRON' ? 'bg-gray-400 hover:bg-gray-300' : theme === 'NATURE' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-purple-500 hover:bg-purple-400 text-white'}`}
             >
-                {isCapturing ? <span className="animate-spin">Generating...</span> : <><Download size={18} /> Download Image</>}
+                {isCapturing ? <span className="animate-pulse">Generating Image...</span> : <><Download size={18} /> Download Card</>}
             </button>
         </div>
         
-        <button onClick={onClose} className="text-gray-500 hover:text-white text-sm underline">Close</button>
+        <button onClick={onClose} className="text-gray-500 hover:text-white text-sm underline pb-4">Close</button>
       </div>
     </div>
   );
