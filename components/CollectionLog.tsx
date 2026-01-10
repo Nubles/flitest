@@ -2,11 +2,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 import { COLLECTION_LOG_DATA } from '../data/collectionLogData';
-import { Search, CheckCircle2, Lock, ListFilter } from 'lucide-react';
+import { Search, CheckCircle2, Lock, ListFilter, Coins, TrendingUp } from 'lucide-react';
 import { DropSource } from '../types';
 import { DROP_RATES } from '../constants';
 import { FixedSizeGrid as Grid } from 'react-window';
 import { wikiService } from '../services/WikiService';
+import { priceService } from '../services/PriceService';
 
 interface CollectionLogProps {
   searchTerm?: string;
@@ -98,8 +99,50 @@ export const CollectionLog: React.FC<CollectionLogProps> = ({ searchTerm = '' })
   const [activePage, setActivePage] = useState<string>('');
   const [viewMode, setViewMode] = useState<'PAGE' | 'SEARCH_ALL'>('PAGE');
   
+  // Pricing State
+  const [vaultValue, setVaultValue] = useState(0);
+  const [mostValuable, setMostValuable] = useState<{name: string, value: number} | null>(null);
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  // Init Prices and Calculate Wealth
+  useEffect(() => {
+    const calcWealth = async () => {
+        await priceService.init();
+        let total = 0;
+        let maxItem = { name: '', value: 0 };
+
+        // Iterate all known collection log items
+        Object.values(COLLECTION_LOG_DATA).forEach(tab => {
+            Object.values(tab.pages).forEach(page => {
+                page.items.forEach(item => {
+                    const count = unlocks.collectionLog[item.id] || 0;
+                    if (count > 0) {
+                        const price = priceService.getPrice(item.name);
+                        const stackValue = price * count;
+                        if (price > 0) {
+                            total += stackValue;
+                            if (price > maxItem.value) {
+                                maxItem = { name: item.name, value: price };
+                            }
+                        }
+                    }
+                });
+            });
+        });
+        setVaultValue(total);
+        setMostValuable(maxItem.value > 0 ? maxItem : null);
+    };
+    calcWealth();
+  }, [unlocks.collectionLog]);
+
+  const formatNumber = (num: number) => {
+      if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+      if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+      if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+      return num.toLocaleString();
+  };
 
   useEffect(() => {
     if (containerRef.current) {
@@ -219,8 +262,23 @@ export const CollectionLog: React.FC<CollectionLogProps> = ({ searchTerm = '' })
       {/* Top Bar */}
       <div className="flex justify-between items-center p-2 bg-[#3e3529] border-b-2 border-[#5a5245] shadow-md shrink-0">
         <h2 className="text-[#ff981f] text-shadow font-bold px-2 text-sm uppercase tracking-wider">Collection Log</h2>
-        <div className="text-xs font-mono bg-black/30 px-2 py-1 rounded border border-[#5a5245]">
-           <span className="text-white">{globalStats.obtained}</span> / {globalStats.total} Unique
+        
+        {/* Wealth Ticker */}
+        <div className="flex items-center gap-4">
+            {mostValuable && (
+                <div className="hidden md:flex items-center gap-2 text-[10px] bg-[#2c241b] px-2 py-1 rounded border border-[#5a5245] shadow-inner text-[#d4c5b0]">
+                    <span className="text-[#ff981f] font-bold flex items-center gap-1"><TrendingUp size={10} /> MVP:</span>
+                    <span className="truncate max-w-[80px] text-white">{mostValuable.name}</span>
+                    <span className="text-green-400 font-mono">({formatNumber(mostValuable.value)})</span>
+                </div>
+            )}
+            <div className="flex items-center gap-2 text-xs font-mono bg-black/30 px-3 py-1 rounded border border-[#5a5245] text-osrs-gold shadow-inner">
+                <Coins size={12} className="text-yellow-400" />
+                <span>{formatNumber(vaultValue)} gp</span>
+            </div>
+            <div className="text-xs font-mono bg-black/30 px-2 py-1 rounded border border-[#5a5245]">
+               <span className="text-white">{globalStats.obtained}</span> / {globalStats.total}
+            </div>
         </div>
       </div>
 
