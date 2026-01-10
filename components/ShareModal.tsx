@@ -188,12 +188,12 @@ Progression: ${progressPercent}% | Total Level: ${totalLevel}
       const feats = [];
       
       // Skills
-      const maxedSkills = Object.entries(unlocks.skills).filter(([_, t]) => t >= 10);
+      const maxedSkills = Object.entries(unlocks.skills).filter(([_, t]) => (t as number) >= 10);
       if (maxedSkills.length > 0) feats.push({ label: `${maxedSkills.length} Maxed Skills`, icon: Crown, color: 'text-yellow-400' });
-      else if (Object.values(unlocks.skills).some(t => t >= 7)) feats.push({ label: 'High-Tier Skiller', icon: BookOpen, color: 'text-blue-400' });
+      else if (Object.values(unlocks.skills).some(t => (t as number) >= 7)) feats.push({ label: 'High-Tier Skiller', icon: BookOpen, color: 'text-blue-400' });
 
       // Gear
-      const maxedGear = Object.entries(unlocks.equipment).filter(([_, t]) => t >= 9);
+      const maxedGear = Object.entries(unlocks.equipment).filter(([_, t]) => (t as number) >= 9);
       if (maxedGear.length > 0) feats.push({ label: 'Endgame Gear Unlocked', icon: Shield, color: 'text-red-400' });
 
       // Raids
