@@ -15,8 +15,9 @@ import { EffectsLayer } from './components/EffectsLayer';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { OracleSearch } from './components/OracleSearch';
 import { StrategyGuide } from './components/StrategyGuide';
+import { SupplyChainCalculator } from './components/SupplyChainCalculator';
 import { encryptFateSave, decryptFateSave } from './utils/encryption';
-import { Key, Sparkles, Download, Upload, RotateCcw, BarChart3, HelpCircle, Dna, Share2, PlayCircle, PauseCircle, Search, Swords, ShoppingBag, ScrollText, Compass } from 'lucide-react';
+import { Key, Sparkles, Download, Upload, RotateCcw, BarChart3, HelpCircle, Dna, Share2, PlayCircle, PauseCircle, Search, Swords, ShoppingBag, ScrollText, Compass, Database } from 'lucide-react';
 
 // --- Toast Component ---
 const ToastNotification = () => {
@@ -64,7 +65,7 @@ const ToastNotification = () => {
   );
 };
 
-const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, setShowOracle, setShowStrategy }: any) => {
+const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, setShowOracle, setShowStrategy, setShowSupplyChain }: any) => {
   const { keys, specialKeys, chaosKeys, fatePoints, activeBuff, animationsEnabled, toggleAnimations, importSave, resetGame } = useGame();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,6 +182,8 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
                  <div className="w-px h-4 bg-white/10"></div>
                  <button onClick={() => setShowStrategy(true)} className="w-7 h-full flex items-center justify-center text-gray-400 hover:text-emerald-400 hover:bg-white/5 rounded transition-colors" title="Strategy Guide"><Compass size={14} /></button>
                  <div className="w-px h-4 bg-white/10"></div>
+                 <button onClick={() => setShowSupplyChain(true)} className="w-7 h-full flex items-center justify-center text-gray-400 hover:text-cyan-400 hover:bg-white/5 rounded transition-colors" title="Resource Engine"><Database size={14} /></button>
+                 <div className="w-px h-4 bg-white/10"></div>
                  <button onClick={() => setShowShare(true)} className="w-7 h-full flex items-center justify-center text-gray-400 hover:text-pink-400 hover:bg-white/5 rounded transition-colors" title="Share"><Share2 size={14} /></button>
                  <div className="w-px h-4 bg-white/10"></div>
                  <button onClick={() => setShowStats(true)} className="w-7 h-full flex items-center justify-center text-gray-400 hover:text-blue-400 hover:bg-white/5 rounded transition-colors" title="Stats"><BarChart3 size={14} /></button>
@@ -259,6 +262,7 @@ const GameLayout = () => {
   const [showShare, setShowShare] = useState(false);
   const [showOracle, setShowOracle] = useState(false);
   const [showStrategy, setShowStrategy] = useState(false);
+  const [showSupplyChain, setShowSupplyChain] = useState(false);
   const [activeRitualAnim, setActiveRitualAnim] = useState<'NONE' | 'LUCK' | 'GREED' | 'CHAOS' | 'TRANSMUTE'>('NONE');
   
   // Watch for ritual events to trigger animations
@@ -297,6 +301,7 @@ const GameLayout = () => {
       {showShare && <ShareModal onClose={() => setShowShare(false)} />}
       {showOracle && <OracleSearch onClose={() => setShowOracle(false)} />}
       {showStrategy && <StrategyGuide onClose={() => setShowStrategy(false)} />}
+      {showSupplyChain && <SupplyChainCalculator onClose={() => setShowSupplyChain(false)} />}
 
       <Header 
         setShowAltar={setShowAltar} 
@@ -305,6 +310,7 @@ const GameLayout = () => {
         setShowReference={setShowReference}
         setShowOracle={setShowOracle}
         setShowStrategy={setShowStrategy}
+        setShowSupplyChain={setShowSupplyChain}
       />
 
       {/* Main Command Center Layout */}
