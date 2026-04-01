@@ -77,9 +77,9 @@ class WikiService {
         this.pendingResolvers.set(term, []);
       }
       this.pendingResolvers.get(term)!.push(resolve);
-      
+
       this.batchQueue.add(term);
-      
+
       if (!this.batchTimeout) {
         this.batchTimeout = window.setTimeout(() => this.processQueue(), 50);
       }
@@ -108,7 +108,7 @@ class WikiService {
       action: 'query',
       prop: 'pageimages',
       piprop: 'thumbnail',
-      pithumbsize: '300', // Reasonable size for grids/cards
+      pithumbsize: '300',
       titles: titles.join('|'),
       format: 'json',
       origin: '*',
@@ -116,19 +116,19 @@ class WikiService {
     });
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     try {
-      const res = await fetch(`${BASE_API}?${params.toString()}`, { 
+      const res = await fetch(`${BASE_API}?${params.toString()}`, {
         signal: controller.signal,
-        headers: { 'Api-User-Agent': 'FateLockedUIM/1.0 (Contact: user@example.com)' }
+        headers: { 'Api-User-Agent': 'FateLockedUIM/1.0 (https://github.com/Nubles/flitest)' }
       });
       clearTimeout(timeoutId);
-      
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      
+
       const pages = data.query?.pages || {};
       const redirects = data.query?.redirects || [];
       const normalized = data.query?.normalized || [];
@@ -152,12 +152,10 @@ class WikiService {
         if (red) finalTitle = red.to;
 
         const url = urlMap[finalTitle] || null;
-        
+
         this.memoryCache.set(requestedTitle, url);
 
-        const resolvers = this.pendingResolvers.get(requestedTitle) || [];
-        resolvers.forEach(r => r(url));
-        this.pendingResolvers.delete(requestedTitle);
+        this.resolvePending(requestedTitle, url);
       });
 
       this.saveCache();
@@ -165,13 +163,18 @@ class WikiService {
     } catch (error) {
       clearTimeout(timeoutId);
       console.warn('Wiki Batch Error/Timeout', error);
-      // Resolve errors as null so UI falls back immediately
-      titles.forEach(t => {
-        const resolvers = this.pendingResolvers.get(t) || [];
-        resolvers.forEach(r => r(null));
-        this.pendingResolvers.delete(t);
-        // Do not cache network errors, allowing retry on refresh
-      });
+      // Resolve all pending as null so UI falls back immediately.
+      // Do not cache network errors, allowing retry on refresh.
+      titles.forEach(t => this.resolvePending(t, null));
+    }
+  }
+
+  /** Resolve and clean up all pending promises for a given title */
+  private resolvePending(title: string, url: string | null) {
+    const resolvers = this.pendingResolvers.get(title);
+    if (resolvers) {
+      resolvers.forEach(r => r(url));
+      this.pendingResolvers.delete(title);
     }
   }
 }

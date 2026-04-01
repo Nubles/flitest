@@ -62,6 +62,5 @@ export const getPoolAndStateKey = (table: TableType) => {
     }
 };
 
-export const calculateUnlockCost = (table: TableType, item: string, unlocks: UnlockState): number => {
-    return 1;
-};
+// Unlock cost is a flat 1 key for all content types
+export const UNLOCK_COST = 1;

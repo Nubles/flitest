@@ -1,20 +1,36 @@
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useRef } from 'react';
 import { GameState, LogEntry, UnlockState, DropSource, TableType } from '../types';
 import { EQUIPMENT_SLOTS, SKILLS_LIST, REGIONS_LIST, MOBILITY_LIST, ARCANA_LIST, POH_LIST, MERCHANTS_LIST, MINIGAMES_LIST, BOSSES_LIST, STORAGE_LIST, GUILDS_LIST, FARMING_PATCH_LIST } from '../data/items';
 import { EQUIPMENT_TIER_MAX } from '../config/rules';
-import { rollDice, calculateUnlockCost } from '../utils/gameEngine';
+import { rollDice, UNLOCK_COST } from '../utils/gameEngine';
 
 // --- Types ---
 const STORAGE_KEY = 'FATE_UIM_SAVE_V1';
 const CURRENT_VERSION = 1;
+const SAVE_DEBOUNCE_MS = 500;
+
+const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+};
+
+type RollEventMeta = { roll: number; threshold: number };
+type UnlockEventMeta = { item: string; cost: number };
+type RitualEventMeta = { type: 'LUCK' | 'GREED' | 'CHAOS' | 'TRANSMUTE' };
+type LevelUpEventMeta = { skill: string; level: number; totalLevel: number; chaosKeyAwarded: boolean };
+
+type GameEventMeta = RollEventMeta | UnlockEventMeta | RitualEventMeta | LevelUpEventMeta;
 
 type GameEvent = {
   id: string;
   type: 'ROLL_SUCCESS' | 'ROLL_FAIL' | 'ROLL_OMNI' | 'ROLL_PITY' | 'UNLOCK' | 'RITUAL' | 'LEVEL_UP';
   x?: number;
   y?: number;
-  meta?: any;
+  meta?: GameEventMeta;
 };
 
 interface GameContextType extends GameState {
@@ -76,21 +92,41 @@ const initialState: GameState = {
   userNotes: {},
 };
 
+// --- Save Validation ---
+const isValidSaveData = (data: unknown): data is Partial<GameState> => {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+
+  // Validate key numeric fields if present
+  if ('keys' in obj && typeof obj.keys !== 'number') return false;
+  if ('specialKeys' in obj && typeof obj.specialKeys !== 'number') return false;
+  if ('chaosKeys' in obj && typeof obj.chaosKeys !== 'number') return false;
+  if ('fatePoints' in obj && typeof obj.fatePoints !== 'number') return false;
+
+  // Validate history is an array if present
+  if ('history' in obj && !Array.isArray(obj.history)) return false;
+
+  // Validate unlocks is an object if present
+  if ('unlocks' in obj && (typeof obj.unlocks !== 'object' || obj.unlocks === null)) return false;
+
+  return true;
+};
+
 // --- Migration & Safety Logic ---
-const migrateSave = (saveData: any): GameState => {
+const migrateSave = (saveData: Partial<GameState>): GameState => {
   // 1. Create a clean base state to ensure all expected top-level keys exist
   const baseState = { ...initialState };
-  
+
   // 2. Extract unlocks for special handling
   const { unlocks: saveUnlocks, ...saveMeta } = saveData;
-  
+
   // 3. Merge meta properties (keys, history, etc) onto base
   // This ensures if new properties are added to GameState in future, they aren't lost or undefined
   const mergedState = { ...baseState, ...saveMeta };
 
   // 4. Handle Unlocks Migration specifically
   const defaultUnlocks = getInitialUnlocks();
-  const loadedUnlocks = saveUnlocks || {};
+  const loadedUnlocks: Record<string, any> = saveUnlocks || {};
 
   // MIGRATION FIXES:
   // Handle 'power' -> 'arcana' rename from very old saves
@@ -142,7 +178,7 @@ type Action =
   | { type: 'RITUAL_GREED' }
   | { type: 'RITUAL_CHAOS' }
   | { type: 'RITUAL_TRANSMUTE' }
-  | { type: 'LEVEL_UP'; payload: { skill: string } }
+  | { type: 'LEVEL_UP'; payload: { skill: string; chaosRoll: number } }
   | { type: 'ADD_LOG'; payload: LogEntry }
   | { type: 'TOGGLE_PIN'; payload: string }
   | { type: 'UPDATE_NOTE'; payload: { id: string; text: string } }
@@ -153,17 +189,17 @@ type Action =
   | { type: 'LOG_ITEM'; payload: number };
 
 const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action: Action): GameState & { lastEvent: GameEvent | null } => {
-  const uuid = () => Math.random().toString(36).substr(2, 9);
   const now = Date.now();
 
   switch (action.type) {
-    case 'LOAD_SAVE':
+    case 'LOAD_SAVE': {
       const migratedState = migrateSave(action.payload);
       return {
         ...state,
         ...migratedState,
         lastEvent: null
       };
+    }
 
     case 'RESET':
       return { ...initialState, lastEvent: null };
@@ -177,22 +213,19 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
     case 'ROLL_RESULT': {
       const { success, omni, pity, roll, threshold, source, x, y } = action.payload;
       const isGreed = state.activeBuff === 'GREED';
-      
-      let newState = { ...state, activeBuff: state.activeBuff === 'LUCK' || state.activeBuff === 'GREED' ? 'NONE' : state.activeBuff } as any;
-      const newHistory = [...state.history];
 
-      // Helper to push strictly typed log
-      const pushLog = (entry: LogEntry) => newHistory.push(entry);
+      let newState = { ...state, activeBuff: state.activeBuff === 'LUCK' || state.activeBuff === 'GREED' ? 'NONE' : state.activeBuff } as GameState & { lastEvent: GameEvent | null };
+      const newHistory = [...state.history];
 
       if (success) {
         if (omni) {
           newState.specialKeys += 1;
-          newState.keys += 1; 
-          
-          const log: LogEntry = {
-             id: uuid(), 
-             timestamp: now, 
-             type: 'ROLL_OMNI', 
+          newState.keys += 1;
+
+          newHistory.push({
+             id: generateId(),
+             timestamp: now,
+             type: 'ROLL_OMNI',
              message: 'LEGENDARY DROP! You found an Omni-Key!',
              details: `Critical Success! Rolled ${roll} vs ${threshold}.`,
              meta: { roll, threshold, source },
@@ -200,15 +233,14 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
              source,
              rollValue: roll,
              threshold
-          };
-          pushLog(log);
-          newState.lastEvent = { id: uuid(), type: 'ROLL_OMNI', x, y, meta: { roll, threshold } };
+          });
+          newState.lastEvent = { id: generateId(), type: 'ROLL_OMNI', x, y, meta: { roll, threshold } };
         } else {
           const amount = isGreed ? 2 : 1;
           newState.keys += amount;
-          
-          const log: LogEntry = {
-             id: uuid(),
+
+          newHistory.push({
+             id: generateId(),
              timestamp: now,
              type: 'ROLL_SUCCESS',
              message: `Key Found!${isGreed ? ' (Doubled)' : ''}`,
@@ -218,17 +250,16 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
              source,
              rollValue: roll,
              threshold
-          };
-          pushLog(log);
-          newState.lastEvent = { id: uuid(), type: 'ROLL_SUCCESS', x, y, meta: { roll, threshold } };
+          });
+          newState.lastEvent = { id: generateId(), type: 'ROLL_SUCCESS', x, y, meta: { roll, threshold } };
         }
         newState.fatePoints = 0;
       } else {
          if (pity) {
             newState.keys += 1;
             newState.fatePoints = 0;
-            const log: LogEntry = {
-                id: uuid(),
+            newHistory.push({
+                id: generateId(),
                 timestamp: now,
                 type: 'PITY',
                 message: 'MAX FATE REACHED! Pity Key granted.',
@@ -236,13 +267,12 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
                 meta: { roll, threshold, source },
                 result: 'SUCCESS',
                 source
-            };
-            pushLog(log);
-            newState.lastEvent = { id: uuid(), type: 'ROLL_PITY', x, y, meta: { roll, threshold } };
+            });
+            newState.lastEvent = { id: generateId(), type: 'ROLL_PITY', x, y, meta: { roll, threshold } };
          } else {
             newState.fatePoints += 1;
-            const log: LogEntry = {
-                id: uuid(),
+            newHistory.push({
+                id: generateId(),
                 timestamp: now,
                 type: 'ROLL_FAIL',
                 message: `No Key.${isGreed ? ' (Greed Wasted)' : ''}`,
@@ -252,20 +282,19 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
                 source,
                 rollValue: roll,
                 threshold
-            };
-            pushLog(log);
-            newState.lastEvent = { id: uuid(), type: 'ROLL_FAIL', x, y, meta: { roll, threshold } };
+            });
+            newState.lastEvent = { id: generateId(), type: 'ROLL_FAIL', x, y, meta: { roll, threshold } };
          }
       }
-      
+
       return { ...newState, history: newHistory };
     }
 
     case 'UNLOCK': {
       const { table, item, costType, cost } = action.payload;
-      
+
       const newUnlocks = { ...state.unlocks };
-      
+
       if (table === TableType.SKILLS) newUnlocks.skills = { ...newUnlocks.skills, [item]: (newUnlocks.skills[item] || 0) + 1 };
       else if (table === TableType.EQUIPMENT) newUnlocks.equipment = { ...newUnlocks.equipment, [item]: (newUnlocks.equipment[item] || 0) + 1 };
       else if (table === TableType.REGIONS) newUnlocks.regions = [...newUnlocks.regions, item];
@@ -284,98 +313,97 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
       else if (costType === 'specialKey') newState.specialKeys -= 1;
       else if (costType === 'chaosKey') newState.chaosKeys -= 1;
 
-      const log: LogEntry = { 
-          id: uuid(), 
-          timestamp: now, 
-          type: 'UNLOCK', 
-          message: `Unlocked ${item}`, 
+      const log: LogEntry = {
+          id: generateId(),
+          timestamp: now,
+          type: 'UNLOCK',
+          message: `Unlocked ${item}`,
           details: `Category: ${table}`,
           meta: { item, category: table, cost, costType }
       };
 
-      return { 
-        ...newState, 
-        history: [...state.history, log], 
-        lastEvent: { id: uuid(), type: 'UNLOCK', meta: { item, cost } }
+      return {
+        ...newState,
+        history: [...state.history, log],
+        lastEvent: { id: generateId(), type: 'UNLOCK', meta: { item, cost } }
       };
     }
 
     case 'RITUAL_LUCK':
-      return { 
-        ...state, 
-        fatePoints: state.fatePoints - 15, 
+      return {
+        ...state,
+        fatePoints: state.fatePoints - 15,
         activeBuff: 'LUCK',
-        history: [...state.history, { id: uuid(), timestamp: now, type: 'ALTAR', message: 'Ritual of Clarity', details: 'Next roll has Advantage.' }],
-        lastEvent: { id: uuid(), type: 'RITUAL', meta: { type: 'LUCK' } }
+        history: [...state.history, { id: generateId(), timestamp: now, type: 'ALTAR', message: 'Ritual of Clarity', details: 'Next roll has Advantage.' }],
+        lastEvent: { id: generateId(), type: 'RITUAL', meta: { type: 'LUCK' } }
       };
-    
+
     case 'RITUAL_GREED':
-      return { 
-        ...state, 
-        fatePoints: state.fatePoints - 30, 
+      return {
+        ...state,
+        fatePoints: state.fatePoints - 30,
         activeBuff: 'GREED',
-        history: [...state.history, { id: uuid(), timestamp: now, type: 'ALTAR', message: 'Ritual of Greed', details: 'Next success gives 2 Keys.' }],
-        lastEvent: { id: uuid(), type: 'RITUAL', meta: { type: 'GREED' } }
+        history: [...state.history, { id: generateId(), timestamp: now, type: 'ALTAR', message: 'Ritual of Greed', details: 'Next success gives 2 Keys.' }],
+        lastEvent: { id: generateId(), type: 'RITUAL', meta: { type: 'GREED' } }
       };
 
     case 'RITUAL_CHAOS':
-      return { 
-        ...state, 
-        fatePoints: state.fatePoints - 25, 
+      return {
+        ...state,
+        fatePoints: state.fatePoints - 25,
         chaosKeys: state.chaosKeys + 1,
-        history: [...state.history, { id: uuid(), timestamp: now, type: 'ALTAR', message: 'Ritual of Chaos', details: 'Fate converted to Chaos Key.' }],
-        lastEvent: { id: uuid(), type: 'RITUAL', meta: { type: 'CHAOS' } }
+        history: [...state.history, { id: generateId(), timestamp: now, type: 'ALTAR', message: 'Ritual of Chaos', details: 'Fate converted to Chaos Key.' }],
+        lastEvent: { id: generateId(), type: 'RITUAL', meta: { type: 'CHAOS' } }
       };
 
     case 'RITUAL_TRANSMUTE':
-      return { 
-        ...state, 
-        keys: state.keys - 5, 
+      return {
+        ...state,
+        keys: state.keys - 5,
         specialKeys: state.specialKeys + 1,
-        history: [...state.history, { id: uuid(), timestamp: now, type: 'ALTAR', message: 'Ritual of Transmutation', details: '5 Keys fused into 1 Omni-Key.' }],
-        lastEvent: { id: uuid(), type: 'RITUAL', meta: { type: 'TRANSMUTE' } }
+        history: [...state.history, { id: generateId(), timestamp: now, type: 'ALTAR', message: 'Ritual of Transmutation', details: '5 Keys fused into 1 Omni-Key.' }],
+        lastEvent: { id: generateId(), type: 'RITUAL', meta: { type: 'TRANSMUTE' } }
       };
 
     case 'LEVEL_UP': {
-      const { skill } = action.payload;
-      
+      const { skill, chaosRoll } = action.payload;
+
       const newLevel = (state.unlocks.levels[skill] || 1) + 1;
       const newLevels = { ...state.unlocks.levels, [skill]: newLevel };
       const newUnlocks = { ...state.unlocks, levels: newLevels };
-      
+
       // Calculate Total Level
       const totalLevel = Object.values(newLevels).reduce((a, b) => a + b, 0);
-      
-      let logs = [...state.history];
+
+      const logs = [...state.history];
       let chaosKeys = state.chaosKeys;
       let chaosKeyAwarded = false;
 
       // RNG Chaos Key Check (2% Chance)
-      // Replaces fixed milestone to fit "RNG Edition" theme
-      const chaosRoll = Math.random();
-      const RNG_CHAOS_CHANCE = 0.02; // 2% -> 1/50 approx
+      // chaosRoll is pre-computed in the action creator to keep the reducer pure
+      const RNG_CHAOS_CHANCE = 0.02;
 
       if (chaosRoll < RNG_CHAOS_CHANCE) {
           chaosKeys += 1;
           chaosKeyAwarded = true;
           logs.push({
-              id: uuid(),
+              id: generateId(),
               timestamp: now,
-              type: 'UNLOCK', 
+              type: 'UNLOCK',
               message: `Chaos Key Drop! (RNG)`,
               details: `Fate smiled upon you at Total Level ${totalLevel}.`,
               meta: { totalLevel, reward: 'Chaos Key' }
           });
       }
-      
-      const eventMeta = { skill, level: newLevel, totalLevel, chaosKeyAwarded };
 
-      return { 
-        ...state, 
-        unlocks: newUnlocks, 
+      const eventMeta: LevelUpEventMeta = { skill, level: newLevel, totalLevel, chaosKeyAwarded };
+
+      return {
+        ...state,
+        unlocks: newUnlocks,
         chaosKeys,
         history: logs,
-        lastEvent: { id: uuid(), type: 'LEVEL_UP', meta: eventMeta }
+        lastEvent: { id: generateId(), type: 'LEVEL_UP', meta: eventMeta }
       };
     }
 
@@ -384,7 +412,7 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
       const isPinned = state.pinnedGoals.includes(goalId);
       return {
         ...state,
-        pinnedGoals: isPinned 
+        pinnedGoals: isPinned
           ? state.pinnedGoals.filter(id => id !== goalId)
           : [...state.pinnedGoals, goalId]
       };
@@ -406,7 +434,7 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
       const newQuests = isCompleted
         ? state.unlocks.quests.filter(q => q !== questId)
         : [...state.unlocks.quests, questId];
-        
+
       return {
         ...state,
         unlocks: { ...state.unlocks, quests: newQuests }
@@ -443,7 +471,7 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
     case 'LOG_ITEM': {
       const itemId = action.payload;
       const currentCount = state.unlocks.collectionLog[itemId] || 0;
-      
+
       const newUnlocks = {
         ...state.unlocks,
         collectionLog: {
@@ -468,31 +496,47 @@ const GameContext = createContext<GameContextType | null>(null);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(gameReducer, { ...initialState, lastEvent: null });
+  const saveTimeoutRef = useRef<number | null>(null);
 
-  // Persistence
+  // Load save on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        dispatch({ type: 'LOAD_SAVE', payload: JSON.parse(saved) });
+        const parsed = JSON.parse(saved);
+        if (isValidSaveData(parsed)) {
+          dispatch({ type: 'LOAD_SAVE', payload: parsed });
+        } else {
+          console.warn('Save data failed validation, starting fresh');
+        }
       }
     } catch (e) { console.error("Failed to load save", e); }
   }, []);
 
+  // Debounced persistence - saves all persistent state fields
   useEffect(() => {
-    const { lastEvent, ...persistState } = state;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persistState));
-  }, [state.keys, state.specialKeys, state.chaosKeys, state.fatePoints, state.unlocks, state.history, state.pinnedGoals, state.userNotes]);
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = window.setTimeout(() => {
+      const { lastEvent, ...persistState } = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistState));
+    }, SAVE_DEBOUNCE_MS);
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [state]);
 
   // --- Actions ---
   const rollForKey = useCallback((source: string, threshold: number, x?: number, y?: number) => {
     let roll = rollDice(100);
     const advantageRoll = rollDice(100);
-    
+
     if (state.activeBuff === 'LUCK') {
       roll = Math.min(roll, advantageRoll);
     }
-    
+
     const success = roll <= threshold;
     let omni = false;
     let pity = false;
@@ -501,9 +545,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let omniChance = 2;
       if (source === DropSource.QUEST_GRANDMASTER) omniChance = 20;
       else if (source === DropSource.DIARY_ELITE) omniChance = 10;
-      else if (source === "Diary Section Complete") omniChance = 10; 
-      else if (source === "CA Tier Complete") omniChance = 10; 
-      
+      else if (source === "Diary Section Complete") omniChance = 10;
+      else if (source === "CA Tier Complete") omniChance = 10;
+
       if (rollDice(100) <= omniChance) omni = true;
     } else {
       if (state.fatePoints + 1 >= 50) pity = true;
@@ -524,7 +568,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const levelUpSkill = useCallback((skill: string) => {
-    dispatch({ type: 'LEVEL_UP', payload: { skill } });
+    // Pre-compute RNG outside reducer to maintain reducer purity
+    const chaosRoll = Math.random();
+    dispatch({ type: 'LEVEL_UP', payload: { skill, chaosRoll } });
+
     const newLevel = (state.unlocks.levels[skill] || 1) + 1;
     const rollChance = Math.ceil(newLevel / 3);
     rollForKey(`${skill} Level ${newLevel}`, rollChance);
@@ -536,7 +583,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const completeOnboarding = useCallback(() => dispatch({ type: 'COMPLETE_ONBOARDING' }), []);
   const toggleAnimations = useCallback(() => dispatch({ type: 'TOGGLE_ANIMATIONS' }), []);
-  const importSave = useCallback((data: Partial<GameState>) => dispatch({ type: 'LOAD_SAVE', payload: data }), []);
+  const importSave = useCallback((data: Partial<GameState>) => {
+    if (isValidSaveData(data)) {
+      dispatch({ type: 'LOAD_SAVE', payload: data });
+    } else {
+      console.error('Import rejected: invalid save data');
+      alert('Failed to import: save data is malformed.');
+    }
+  }, []);
   const resetGame = useCallback(() => dispatch({ type: 'RESET' }), []);
   const togglePin = useCallback((id: string) => dispatch({ type: 'TOGGLE_PIN', payload: id }), []);
   const saveNote = useCallback((id: string, text: string) => dispatch({ type: 'UPDATE_NOTE', payload: { id, text } }), []);

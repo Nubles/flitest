@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import { ActionSection } from './components/ActionSection';
 import { GachaSection } from './components/GachaSection';
@@ -16,8 +16,54 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { OracleSearch } from './components/OracleSearch';
 import { StrategyGuide } from './components/StrategyGuide';
 import { SupplyChainCalculator } from './components/SupplyChainCalculator';
-import { encryptFateSave, decryptFateSave } from './utils/encryption';
+import { obfuscateFateSave, deobfuscateFateSave } from './utils/encryption';
 import { Key, Sparkles, Download, Upload, RotateCcw, BarChart3, HelpCircle, Dna, Share2, PlayCircle, PauseCircle, Search, Swords, ShoppingBag, ScrollText, Compass, Database } from 'lucide-react';
+
+// --- Error Boundary ---
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  state: ErrorBoundaryState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Application error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#161616] flex items-center justify-center p-8">
+          <div className="bg-[#1e1e1e] border border-red-500/30 rounded-xl p-8 max-w-lg text-center">
+            <h1 className="text-2xl font-bold text-red-400 mb-4">Something went wrong</h1>
+            <p className="text-gray-400 mb-4">
+              The application encountered an error. Your save data is preserved in localStorage.
+            </p>
+            <pre className="text-xs text-red-300/70 bg-black/30 rounded p-3 mb-6 text-left overflow-auto max-h-32">
+              {this.state.error?.message}
+            </pre>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold transition-colors"
+            >
+              Reload Application
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // --- Toast Component ---
 const ToastNotification = () => {
@@ -28,9 +74,9 @@ const ToastNotification = () => {
 
   useEffect(() => {
     if (!lastEvent) return;
-    
+
     const undoableTypes = [
-      'ROLL_SUCCESS', 'ROLL_FAIL', 'ROLL_OMNI', 'ROLL_PITY', 
+      'ROLL_SUCCESS', 'ROLL_FAIL', 'ROLL_OMNI', 'ROLL_PITY',
       'UNLOCK', 'RITUAL', 'LEVEL_UP'
     ];
 
@@ -41,7 +87,7 @@ const ToastNotification = () => {
       if (lastEvent.type === 'RITUAL') msg = 'Ritual Performed';
       if (lastEvent.type === 'LEVEL_UP') {
           // Check for Chaos Key award in metadata
-          if (lastEvent.meta && lastEvent.meta.chaosKeyAwarded) {
+          if (lastEvent.meta && 'chaosKeyAwarded' in lastEvent.meta && lastEvent.meta.chaosKeyAwarded) {
               msg = 'Level Up + Chaos Key!';
           } else {
               msg = 'Level Up';
@@ -65,29 +111,38 @@ const ToastNotification = () => {
   );
 };
 
-const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, setShowOracle, setShowStrategy, setShowSupplyChain }: any) => {
+interface HeaderProps {
+  setShowAltar: (show: boolean) => void;
+  setShowShare: (show: boolean) => void;
+  setShowStats: (show: boolean) => void;
+  setShowReference: (show: boolean) => void;
+  setShowOracle: (show: boolean) => void;
+  setShowStrategy: (show: boolean) => void;
+  setShowSupplyChain: (show: boolean) => void;
+}
+
+const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, setShowOracle, setShowStrategy, setShowSupplyChain }: HeaderProps) => {
   const { keys, specialKeys, chaosKeys, fatePoints, activeBuff, animationsEnabled, toggleAnimations, importSave, resetGame } = useGame();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const fileContent = event.target?.result as string;
-        // Attempt to decrypt the unique format
-        const imported = decryptFateSave(fileContent);
-        
+        const imported = deobfuscateFateSave(fileContent);
+
         if (imported) {
-            importSave(imported);
+            importSave(imported as any);
             alert("Fate restored successfully.");
         } else {
             alert("Failed to read the ancient texts. (Invalid save file)");
         }
-      } catch (err) { 
-          alert("Failed to import save data."); 
+      } catch (err) {
+          alert("Failed to import save data.");
           console.error(err);
       }
     };
@@ -99,18 +154,16 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
   const handleExport = () => {
       const rawData = localStorage.getItem('FATE_UIM_SAVE_V1');
       if (!rawData) return;
-      
+
       try {
           const jsonData = JSON.parse(rawData);
-          // Use the unique encryption method
-          const encryptedData = encryptFateSave(jsonData);
-          
-          const blob = new Blob([encryptedData], { type: 'text/plain' });
+          const obfuscatedData = obfuscateFateSave(jsonData);
+
+          const blob = new Blob([obfuscatedData], { type: 'text/plain' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          // Use .fate extension for flavor, though it's text
-          a.download = `fate_locked_${Date.now()}.fate`; 
+          a.download = `fate_locked_${Date.now()}.fate`;
           a.click();
           URL.revokeObjectURL(url);
       } catch (e) {
@@ -122,7 +175,7 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
   return (
       <header className="bg-[#1e1e1e] border-b border-white/10 sticky top-0 z-50 shadow-xl backdrop-blur-md bg-opacity-95">
         <div className="max-w-[1600px] mx-auto px-4 py-2 flex flex-col xl:flex-row items-center justify-between gap-4">
-          
+
           {/* Logo Section */}
           <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 bg-gradient-to-br from-amber-600 to-amber-900 rounded-lg flex items-center justify-center border border-amber-500/50 shadow-inner">
@@ -168,8 +221,8 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
           <div className="flex items-center gap-2 shrink-0">
              {/* Accept .fate files and legacy .json files */}
              <input type="file" ref={fileInputRef} className="hidden" accept=".json,.fate" onChange={handleFileChange} />
-             
-             <button 
+
+             <button
                 onClick={() => setShowAltar(true)}
                 className={`h-8 group px-3 rounded-lg border font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg ${activeBuff !== 'NONE' ? activeBuff === 'GREED' ? 'bg-amber-900/40 border-amber-500 text-amber-300' : 'bg-blue-900/40 border-blue-500 text-blue-300' : 'bg-[#252525] border-purple-500/30 text-purple-300 hover:bg-purple-900/20'}`}
              >
@@ -211,24 +264,24 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
 // --- New Control Panel Component ---
 const ControlPanel = () => {
   const [activeTab, setActiveTab] = useState<'FARM' | 'SPEND' | 'LOG'>('FARM');
-  
+
   return (
     <div className="flex flex-col h-full bg-[#1b1b1b] border border-[#333] rounded-lg overflow-hidden shadow-xl">
       {/* Tabs */}
       <div className="flex border-b border-[#333] bg-[#161616] shrink-0">
-        <button 
+        <button
           onClick={() => setActiveTab('FARM')}
           className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'FARM' ? 'bg-[#252525] text-green-400 border-b-2 border-green-400' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]'}`}
         >
           <Swords size={14} /> Farm Keys
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('SPEND')}
           className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'SPEND' ? 'bg-[#252525] text-osrs-gold border-b-2 border-osrs-gold' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]'}`}
         >
           <ShoppingBag size={14} /> Spend Keys
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('LOG')}
           className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'LOG' ? 'bg-[#252525] text-blue-400 border-b-2 border-blue-400' : 'text-gray-500 hover:text-gray-300 hover:bg-[#1a1a1a]'}`}
         >
@@ -254,7 +307,7 @@ const ControlPanel = () => {
 
 const GameLayout = () => {
   const { lastEvent, animationsEnabled, hasSeenOnboarding } = useGame();
-  
+
   // UI States
   const [showStats, setShowStats] = useState(false);
   const [showReference, setShowReference] = useState(false);
@@ -264,11 +317,11 @@ const GameLayout = () => {
   const [showStrategy, setShowStrategy] = useState(false);
   const [showSupplyChain, setShowSupplyChain] = useState(false);
   const [activeRitualAnim, setActiveRitualAnim] = useState<'NONE' | 'LUCK' | 'GREED' | 'CHAOS' | 'TRANSMUTE'>('NONE');
-  
+
   // Watch for ritual events to trigger animations
   React.useEffect(() => {
     if (lastEvent?.type === 'RITUAL' && animationsEnabled) {
-       setActiveRitualAnim(lastEvent.meta.type);
+       setActiveRitualAnim((lastEvent.meta as any).type);
     }
   }, [lastEvent, animationsEnabled]);
 
@@ -287,14 +340,14 @@ const GameLayout = () => {
     <div className="min-h-screen bg-osrs-bg text-osrs-text pb-6 font-sans selection:bg-osrs-gold selection:text-black relative">
       <EffectsLayer />
       <ToastNotification />
-      
+
       {!hasSeenOnboarding && <OnboardingWizard />}
-      
+
       {activeRitualAnim === 'TRANSMUTE' && <TransmutationEffect onComplete={() => setActiveRitualAnim('NONE')} />}
       {activeRitualAnim === 'LUCK' && <ClarityEffect onComplete={() => setActiveRitualAnim('NONE')} />}
       {activeRitualAnim === 'GREED' && <GreedEffect onComplete={() => setActiveRitualAnim('NONE')} />}
       {activeRitualAnim === 'CHAOS' && <ChaosEffect onComplete={() => setActiveRitualAnim('NONE')} />}
-      
+
       {showStats && <StatsModal onClose={() => setShowStats(false)} />}
       {showReference && <ReferenceModal onClose={() => setShowReference(false)} />}
       {showAltar && <VoidAltar onClose={() => setShowAltar(false)} />}
@@ -303,10 +356,10 @@ const GameLayout = () => {
       {showStrategy && <StrategyGuide onClose={() => setShowStrategy(false)} />}
       {showSupplyChain && <SupplyChainCalculator onClose={() => setShowSupplyChain(false)} />}
 
-      <Header 
-        setShowAltar={setShowAltar} 
-        setShowShare={setShowShare} 
-        setShowStats={setShowStats} 
+      <Header
+        setShowAltar={setShowAltar}
+        setShowShare={setShowShare}
+        setShowStats={setShowStats}
         setShowReference={setShowReference}
         setShowOracle={setShowOracle}
         setShowStrategy={setShowStrategy}
@@ -316,7 +369,7 @@ const GameLayout = () => {
       {/* Main Command Center Layout */}
       <main className="max-w-[1600px] mx-auto px-4 py-4 h-[calc(100vh-80px)]">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
-          
+
           {/* LEFT: Interaction & Control (35%) */}
           <div className="lg:col-span-4 h-full min-h-[500px]">
             <ControlPanel />
@@ -337,9 +390,11 @@ const GameLayout = () => {
 
 function App() {
   return (
-    <GameProvider>
-      <GameLayout />
-    </GameProvider>
+    <ErrorBoundary>
+      <GameProvider>
+        <GameLayout />
+      </GameProvider>
+    </ErrorBoundary>
   );
 }
 
