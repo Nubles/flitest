@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
+import { ProfileProvider, useProfiles } from './context/ProfileContext';
 import { ActionSection } from './components/ActionSection';
 import { GachaSection } from './components/GachaSection';
 import { Dashboard } from './components/Dashboard';
@@ -16,7 +17,9 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { OracleSearch } from './components/OracleSearch';
 import { StrategyGuide } from './components/StrategyGuide';
 import { SupplyChainCalculator } from './components/SupplyChainCalculator';
+import { ProfileSwitcher } from './components/ProfileSwitcher';
 import { obfuscateFateSave, deobfuscateFateSave } from './utils/encryption';
+import { GameState } from './types';
 import { Key, Sparkles, Download, Upload, RotateCcw, BarChart3, HelpCircle, Dna, Share2, PlayCircle, PauseCircle, Search, Swords, ShoppingBag, ScrollText, Compass, Database } from 'lucide-react';
 
 // --- Error Boundary ---
@@ -122,7 +125,7 @@ interface HeaderProps {
 }
 
 const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, setShowOracle, setShowStrategy, setShowSupplyChain }: HeaderProps) => {
-  const { keys, specialKeys, chaosKeys, fatePoints, activeBuff, animationsEnabled, toggleAnimations, importSave, resetGame } = useGame();
+  const { keys, specialKeys, chaosKeys, fatePoints, activeBuff, animationsEnabled, toggleAnimations, importSave, resetGame, getExportData } = useGame();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,7 +139,7 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
         const imported = deobfuscateFateSave(fileContent);
 
         if (imported) {
-            importSave(imported as any);
+            importSave(imported as Partial<GameState>);
             alert("Fate restored successfully.");
         } else {
             alert("Failed to read the ancient texts. (Invalid save file)");
@@ -146,13 +149,16 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
           console.error(err);
       }
     };
+    reader.onerror = () => {
+      alert("Failed to read the file.");
+    };
     reader.readAsText(file);
     // Reset input
     e.target.value = '';
   };
 
   const handleExport = () => {
-      const rawData = localStorage.getItem('FATE_UIM_SAVE_V1');
+      const rawData = getExportData();
       if (!rawData) return;
 
       try {
@@ -185,6 +191,7 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
               <h1 className="text-lg font-black text-gray-100 tracking-tight uppercase leading-none">Fate Locked Ironman</h1>
               <p className="text-[10px] text-gray-500 font-mono mt-0.5 tracking-wide">RNG EDITION COMMAND CENTER</p>
             </div>
+            <ProfileSwitcher />
           </div>
 
           {/* Resources Bar */}
@@ -388,12 +395,25 @@ const GameLayout = () => {
   );
 };
 
+/** Bridge reads profile context and passes storageKey to GameProvider.
+ *  key={activeProfileId} forces a clean remount when switching profiles. */
+const GameProviderBridge: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { activeProfileId, storageKeyForActiveProfile } = useProfiles();
+  return (
+    <GameProvider key={activeProfileId} storageKey={storageKeyForActiveProfile}>
+      {children}
+    </GameProvider>
+  );
+};
+
 function App() {
   return (
     <ErrorBoundary>
-      <GameProvider>
-        <GameLayout />
-      </GameProvider>
+      <ProfileProvider>
+        <GameProviderBridge>
+          <GameLayout />
+        </GameProviderBridge>
+      </ProfileProvider>
     </ErrorBoundary>
   );
 }

@@ -79,17 +79,23 @@ export const VoidReveal: React.FC<VoidRevealProps> = ({ itemName, itemType, item
 
   // Preload Image during animation
   useEffect(() => {
-    if (itemImage) {
-        const img = new Image();
-        img.src = itemImage;
-        img.onload = () => setImgLoaded(true);
-        img.onerror = () => {
-            setImageError(true);
-            setImgLoaded(true); // Mark loaded to stop spinner and show fallback
-        };
-    } else {
+    if (!itemImage) {
         setImgLoaded(true);
+        return;
     }
+
+    let cancelled = false;
+    const img = new Image();
+    img.src = itemImage;
+    img.onload = () => { if (!cancelled) setImgLoaded(true); };
+    img.onerror = () => {
+        if (!cancelled) {
+            setImageError(true);
+            setImgLoaded(true);
+        }
+    };
+
+    return () => { cancelled = true; };
   }, [itemImage]);
 
   useEffect(() => {

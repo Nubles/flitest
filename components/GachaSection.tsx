@@ -131,7 +131,7 @@ export const GachaSection: React.FC = () => {
     if (pendingReveal) return; // Guard: Do not allow another roll while reveal is pending
     if (keys <= 0) return;
     const { pool, stateKey } = getPoolAndStateKey(table);
-    const validPool = pool.filter(item => isValidUnlock(table, item, unlocks, keys));
+    const validPool = pool.filter(item => isValidUnlock(table, item, unlocks));
     
     if (validPool.length === 0) {
         alert("Nothing left to unlock in this category!");
@@ -168,7 +168,7 @@ export const GachaSection: React.FC = () => {
       allTables.forEach(table => {
           const { pool, stateKey } = getPoolAndStateKey(table);
           // Pass Infinity for keys because Chaos Key bypasses key cost
-          const validItems = pool.filter(item => isValidUnlock(table, item, unlocks, Infinity));
+          const validItems = pool.filter(item => isValidUnlock(table, item, unlocks));
           validItems.forEach(item => {
               globalPool.push({ item, tableType: table, stateKey });
           });

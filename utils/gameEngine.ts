@@ -24,7 +24,7 @@ export const checkUnlockAvailability = (unlocks: UnlockState) => {
     };
 };
 
-export const isValidUnlock = (table: TableType, item: string, unlocks: UnlockState, currentKeys: number): boolean => {
+export const isValidUnlock = (table: TableType, item: string, unlocks: UnlockState): boolean => {
     if (table === TableType.SKILLS) {
         const currentTier = unlocks.skills[item] || 0;
         if (currentTier >= 10) return false;

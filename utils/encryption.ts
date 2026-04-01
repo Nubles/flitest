@@ -84,6 +84,3 @@ export const deobfuscateFateSave = (cipher: string): Record<string, unknown> | n
   }
 };
 
-// Backward-compatible aliases
-export const encryptFateSave = obfuscateFateSave;
-export const decryptFateSave = deobfuscateFateSave;
