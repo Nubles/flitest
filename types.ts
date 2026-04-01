@@ -107,3 +107,15 @@ export interface GameState {
   pinnedGoals: string[]; // IDs from STRATEGY_DATABASE
   userNotes: Record<string, string>; // ID -> Note Content
 }
+
+// --- Profile System ---
+export interface Profile {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface ProfileMetadata {
+  profiles: Profile[];
+  activeProfileId: string;
+}

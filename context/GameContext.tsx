@@ -6,7 +6,6 @@ import { EQUIPMENT_TIER_MAX } from '../config/rules';
 import { rollDice, UNLOCK_COST } from '../utils/gameEngine';
 
 // --- Types ---
-const STORAGE_KEY = 'FATE_UIM_SAVE_V1';
 const CURRENT_VERSION = 1;
 const SAVE_DEBOUNCE_MS = 500;
 
@@ -50,6 +49,7 @@ interface GameContextType extends GameState {
   toggleCA: (id: string) => void;
   toggleTask: (id: string) => void;
   logCollectionItem: (itemId: number) => void;
+  getExportData: () => string | null;
 }
 
 // --- Initial State ---
@@ -494,14 +494,14 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
 // --- Context ---
 const GameContext = createContext<GameContextType | null>(null);
 
-export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const GameProvider: React.FC<{ children: React.ReactNode; storageKey: string }> = ({ children, storageKey }) => {
   const [state, dispatch] = useReducer(gameReducer, { ...initialState, lastEvent: null });
   const saveTimeoutRef = useRef<number | null>(null);
 
   // Load save on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (isValidSaveData(parsed)) {
@@ -511,7 +511,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (e) { console.error("Failed to load save", e); }
-  }, []);
+  }, [storageKey]);
 
   // Debounced persistence - saves all persistent state fields
   useEffect(() => {
@@ -520,13 +520,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     saveTimeoutRef.current = window.setTimeout(() => {
       const { lastEvent, ...persistState } = state;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(persistState));
+      localStorage.setItem(storageKey, JSON.stringify(persistState));
     }, SAVE_DEBOUNCE_MS);
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [state]);
+  }, [state, storageKey]);
 
   // --- Actions ---
   const rollForKey = useCallback((source: string, threshold: number, x?: number, y?: number) => {
@@ -599,6 +599,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const toggleCA = useCallback((id: string) => dispatch({ type: 'TOGGLE_CA', payload: id }), []);
   const toggleTask = useCallback((id: string) => dispatch({ type: 'TOGGLE_TASK', payload: id }), []);
 
+  const getExportData = useCallback((): string | null => {
+    return localStorage.getItem(storageKey);
+  }, [storageKey]);
+
   const contextValue = useMemo(() => ({
     ...state,
     rollForKey,
@@ -615,7 +619,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleDiary,
     toggleCA,
     toggleTask,
-    logCollectionItem
+    logCollectionItem,
+    getExportData
   }), [
     state,
     rollForKey,
@@ -632,7 +637,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleDiary,
     toggleCA,
     toggleTask,
-    logCollectionItem
+    logCollectionItem,
+    getExportData
   ]);
 
   return (
