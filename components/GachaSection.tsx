@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { TableType } from '../types';
 import { useGame } from '../context/GameContext';
-import { checkUnlockAvailability, getPoolAndStateKey, isValidUnlock, calculateUnlockCost } from '../utils/gameEngine';
+import { checkUnlockAvailability, getPoolAndStateKey, isValidUnlock, UNLOCK_COST } from '../utils/gameEngine';
 import { REGION_ICONS, SLOT_CONFIG, SPECIAL_ICONS, EQUIPMENT_SLOTS, SKILLS_LIST, REGIONS_LIST, MOBILITY_LIST, ARCANA_LIST, MINIGAMES_LIST, BOSSES_LIST, POH_LIST, MERCHANTS_LIST, STORAGE_LIST, GUILDS_LIST, FARMING_PATCH_LIST, UTILITY_ITEM_IDS } from '../constants';
 import { VoidReveal } from './VoidReveal';
 import { wikiService } from '../services/WikiService';
@@ -139,7 +139,7 @@ export const GachaSection: React.FC = () => {
     }
 
     const item = validPool[Math.floor(Math.random() * validPool.length)];
-    const cost = calculateUnlockCost(table, item, unlocks);
+    const cost = UNLOCK_COST;
     let imageUrl = getUnlockImage(stateKey, item);
 
     // Fetch dynamic image if applicable using WikiService and NO ID override was found

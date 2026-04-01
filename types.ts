@@ -17,7 +17,7 @@ export enum DropSource {
   DIARY_MEDIUM = 'Diary (Medium)',
   DIARY_HARD = 'Diary (Hard)',
   DIARY_ELITE = 'Diary (Elite)',
-  
+
   // Specific Slayer Tiers
   SLAYER_BEGINNER = 'Slayer (Turael/Spria)',
   SLAYER_MAZCHNA = 'Slayer (Mazchna)',
@@ -67,7 +67,9 @@ export interface LogEntry {
   threshold?: number;
   message: string;
   details?: string;
-  meta?: any;
+  // Loosely typed to accommodate varied event metadata across roll, unlock, ritual, and level-up events.
+  // Tightening this to a discriminated union would require changes across 20+ component files.
+  meta?: Record<string, any>;
 }
 
 export interface UnlockState {
