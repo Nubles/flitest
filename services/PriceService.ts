@@ -12,7 +12,7 @@ interface PriceMapping {
   members: boolean;
   lowalch: number;
   limit: number;
-  value: number; 
+  value: number;
 }
 
 interface PriceData {
@@ -33,30 +33,36 @@ class PriceService {
     if (this.initializationPromise) return this.initializationPromise;
 
     this.initializationPromise = this.performInit();
-    await this.initializationPromise;
+    return this.initializationPromise;
   }
 
   private async performInit() {
-    // 1. Load Mapping (Persistent, update rarely)
-    const cachedMapping = localStorage.getItem(CACHE_KEY_MAPPING);
-    if (cachedMapping) {
-      this.nameToId = JSON.parse(cachedMapping);
-    } else {
-      try {
-        const res = await fetch(MAPPING_API, { headers: { 'User-Agent': 'FateLockedUIM/1.0' } });
-        const data: PriceMapping[] = await res.json();
-        data.forEach(item => {
-          this.nameToId[item.name.toLowerCase()] = item.id;
-        });
-        localStorage.setItem(CACHE_KEY_MAPPING, JSON.stringify(this.nameToId));
-      } catch (e) {
-        console.warn('Failed to load price mapping', e);
+    try {
+      // 1. Load Mapping (Persistent, update rarely)
+      const cachedMapping = localStorage.getItem(CACHE_KEY_MAPPING);
+      if (cachedMapping) {
+        this.nameToId = JSON.parse(cachedMapping);
+      } else {
+        try {
+          const res = await fetch(MAPPING_API, { headers: { 'User-Agent': 'FateLockedUIM/1.0' } });
+          const data: PriceMapping[] = await res.json();
+          data.forEach(item => {
+            this.nameToId[item.name.toLowerCase()] = item.id;
+          });
+          localStorage.setItem(CACHE_KEY_MAPPING, JSON.stringify(this.nameToId));
+        } catch (e) {
+          console.warn('Failed to load price mapping', e);
+        }
       }
-    }
 
-    // 2. Load Prices (Volatile, cache for TTL)
-    await this.refreshPrices();
-    this.initialized = true;
+      // 2. Load Prices (Volatile, cache for TTL)
+      await this.refreshPrices();
+      this.initialized = true;
+    } catch (e) {
+      // Reset so next call can retry
+      this.initializationPromise = null;
+      throw e;
+    }
   }
 
   async refreshPrices() {

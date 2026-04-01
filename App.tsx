@@ -17,6 +17,7 @@ import { OracleSearch } from './components/OracleSearch';
 import { StrategyGuide } from './components/StrategyGuide';
 import { SupplyChainCalculator } from './components/SupplyChainCalculator';
 import { obfuscateFateSave, deobfuscateFateSave } from './utils/encryption';
+import { GameState } from './types';
 import { Key, Sparkles, Download, Upload, RotateCcw, BarChart3, HelpCircle, Dna, Share2, PlayCircle, PauseCircle, Search, Swords, ShoppingBag, ScrollText, Compass, Database } from 'lucide-react';
 
 // --- Error Boundary ---
@@ -136,7 +137,7 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
         const imported = deobfuscateFateSave(fileContent);
 
         if (imported) {
-            importSave(imported as any);
+            importSave(imported as Partial<GameState>);
             alert("Fate restored successfully.");
         } else {
             alert("Failed to read the ancient texts. (Invalid save file)");
@@ -145,6 +146,9 @@ const Header = ({ setShowAltar, setShowShare, setShowStats, setShowReference, se
           alert("Failed to import save data.");
           console.error(err);
       }
+    };
+    reader.onerror = () => {
+      alert("Failed to read the file.");
     };
     reader.readAsText(file);
     // Reset input

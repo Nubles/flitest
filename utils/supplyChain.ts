@@ -90,24 +90,13 @@ export const calculateSupplyChain = (itemName: string, gameState: GameState): Su
         let isUnlocked = false;
         if (gameState.unlocks.bosses.includes(source.unlockId)) isUnlocked = true;
         else if (gameState.unlocks.minigames.includes(source.unlockId)) isUnlocked = true;
-        else if (gameState.unlocks.farming.includes(source.unlockId)) isUnlocked = true; 
-        else if (gameState.unlocks.merchants.includes(source.unlockId)) isUnlocked = true; 
+        else if (gameState.unlocks.farming.includes(source.unlockId)) isUnlocked = true;
+        else if (gameState.unlocks.merchants.includes(source.unlockId)) isUnlocked = true;
         else if (gameState.unlocks.guilds.includes(source.unlockId)) isUnlocked = true;
-        // Fallback: Check all lists loosely
-        else {
-             const allUnlocks = [
-                 ...gameState.unlocks.bosses,
-                 ...gameState.unlocks.minigames,
-                 ...gameState.unlocks.farming,
-                 ...gameState.unlocks.merchants,
-                 ...gameState.unlocks.guilds,
-                 ...gameState.unlocks.mobility,
-                 ...gameState.unlocks.arcana,
-                 ...gameState.unlocks.storage,
-                 ...gameState.unlocks.housing
-             ];
-             if (allUnlocks.includes(source.unlockId)) isUnlocked = true;
-        }
+        else if (gameState.unlocks.mobility.includes(source.unlockId)) isUnlocked = true;
+        else if (gameState.unlocks.arcana.includes(source.unlockId)) isUnlocked = true;
+        else if (gameState.unlocks.storage.includes(source.unlockId)) isUnlocked = true;
+        else if (gameState.unlocks.housing.includes(source.unlockId)) isUnlocked = true;
 
         if (!isUnlocked) {
             missing.push(`Unlock: ${source.unlockId}`);

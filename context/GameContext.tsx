@@ -389,7 +389,7 @@ const gameReducer = (state: GameState & { lastEvent: GameEvent | null }, action:
           logs.push({
               id: generateId(),
               timestamp: now,
-              type: 'UNLOCK',
+              type: 'LEVEL_UP',
               message: `Chaos Key Drop! (RNG)`,
               details: `Fate smiled upon you at Total Level ${totalLevel}.`,
               meta: { totalLevel, reward: 'Chaos Key' }
